@@ -1,17 +1,31 @@
 import React from 'react';
-import { PhoneCall, Bell, ShieldAlert, HeartHandshake, Smartphone, Users } from 'lucide-react';
+import { PhoneCall, Bell, ShieldAlert, HeartHandshake, Smartphone, Users, Sliders, Type } from 'lucide-react';
 import { VittacareLogo } from './VittacareLogo';
-import { CLINIC_INFO, INITIAL_PATIENT } from '../data/mockData';
+import { CLINIC_INFO } from '../data/mockData';
+import { usePatient } from '../context/PatientContext';
+import { NavTab } from '../types';
 
 interface HeaderProps {
   onOpenSOS: () => void;
   onOpenInstall: () => void;
   onOpenShare: () => void;
-  onSelectTab: (tab: 'home' | 'calendar' | 'symptoms' | 'education' | 'profile') => void;
+  onOpenCustomization: () => void;
+  onSelectTab: (tab: NavTab) => void;
   activeTab: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenSOS, onOpenInstall, onOpenShare, onSelectTab, activeTab }) => {
+export const Header: React.FC<HeaderProps> = ({ 
+  onOpenSOS, 
+  onOpenInstall, 
+  onOpenShare, 
+  onOpenCustomization,
+  onSelectTab, 
+  activeTab 
+}) => {
+  const { patient } = usePatient();
+  const motherName = patient?.preferredName || patient?.name?.split(' ')[0] || 'Mãezinha';
+  const initialLetter = motherName ? motherName[0].toUpperCase() : 'M';
+  const weekLabel = patient?.currentWeek ? `${patient.currentWeek}ª Semana` : 'Pré-natal';
   return (
     <header className="sticky top-0 z-30 w-full bg-[#FDFBF7]/95 backdrop-blur-md border-b border-[#E6D4AF]/50 transition-all">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between">
@@ -25,10 +39,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSOS, onOpenInstall, onOpen
         </button>
 
         {/* Navigation links for tablet & desktop */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-stone-600">
+        <nav className="hidden lg:flex items-center gap-4 xl:gap-5 text-xs xl:text-sm font-medium text-stone-600">
           <button
             onClick={() => onSelectTab('home')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 ${
+            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
               activeTab === 'home'
                 ? 'text-[#5D1425] border-[#B89243] font-semibold'
                 : 'text-stone-600 border-transparent hover:text-[#5D1425]'
@@ -37,49 +51,90 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSOS, onOpenInstall, onOpen
             Início
           </button>
           <button
+            onClick={() => onSelectTab('prenatal_card')}
+            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+              activeTab === 'prenatal_card'
+                ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+            }`}
+          >
+            Carteira Digital
+          </button>
+          <button
+            onClick={() => onSelectTab('community')}
+            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+              activeTab === 'community'
+                ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+            }`}
+          >
+            Fórum de Apoio
+          </button>
+          <button
+            onClick={() => onSelectTab('news')}
+            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+              activeTab === 'news'
+                ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+            }`}
+          >
+            Mural Vittacare
+          </button>
+          <button
             onClick={() => onSelectTab('calendar')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 ${
+            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
               activeTab === 'calendar'
                 ? 'text-[#5D1425] border-[#B89243] font-semibold'
                 : 'text-stone-600 border-transparent hover:text-[#5D1425]'
             }`}
           >
-            Minha Agenda
+            Agenda
+          </button>
+          <button
+            onClick={() => onSelectTab('reminders')}
+            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+              activeTab === 'reminders'
+                ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+            }`}
+          >
+            Lembretes
           </button>
           <button
             onClick={() => onSelectTab('symptoms')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 ${
+            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
               activeTab === 'symptoms'
                 ? 'text-[#5D1425] border-[#B89243] font-semibold'
                 : 'text-stone-600 border-transparent hover:text-[#5D1425]'
             }`}
           >
-            Diário de Sintomas
+            Diário
           </button>
           <button
             onClick={() => onSelectTab('education')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 ${
+            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
               activeTab === 'education'
                 ? 'text-[#5D1425] border-[#B89243] font-semibold'
                 : 'text-stone-600 border-transparent hover:text-[#5D1425]'
             }`}
           >
-            Prevenção & Cuidado
-          </button>
-          <button
-            onClick={() => onSelectTab('profile')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 ${
-              activeTab === 'profile'
-                ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-            }`}
-          >
-            Minha Carteira
+            Educação
           </button>
         </nav>
 
         {/* Action Zone: Share, Install App, SOS 24h & Patient Avatar */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Customization / Font Size & Accessibility */}
+          <button
+            onClick={onOpenCustomization}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold text-[#480D1B] bg-white border border-[#DEC68E] hover:bg-[#FAF6ED] transition-all cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B89243]"
+            title="Ajustar tamanho da letra e acessibilidade do app"
+            aria-label="Ajustar tamanho da letra e acessibilidade"
+          >
+            <Type className="w-3.5 h-3.5 text-[#B89243]" />
+            <span className="font-serif font-bold text-xs text-[#5D1425]">A±</span>
+          </button>
+
           {/* Share Access Button */}
           <button
             onClick={onOpenShare}
@@ -126,16 +181,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSOS, onOpenInstall, onOpen
           <button
             onClick={() => onSelectTab('profile')}
             className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-stone-100 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B89243]"
-            title="Ver Perfil de Mariana"
+            title={`Ver Carteira de ${motherName}`}
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#DEC68E] to-[#B89243] flex items-center justify-center text-white font-serif font-bold text-sm shadow-xs border border-white">
-              M
+              {initialLetter}
             </div>
             <div className="hidden lg:flex flex-col">
               <span className="text-xs font-semibold text-[#480D1B] leading-none">
-                {INITIAL_PATIENT.preferredName}
+                {motherName}
               </span>
-              <span className="text-[10px] text-stone-500 font-medium">18ª Semana</span>
+              <span className="text-[10px] text-stone-500 font-medium">{weekLabel}</span>
             </div>
           </button>
         </div>

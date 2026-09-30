@@ -5,20 +5,36 @@ import { DashboardView } from './components/DashboardView';
 import { CalendarView } from './components/CalendarView';
 import { EducationView } from './components/EducationView';
 import { SymptomsView } from './components/SymptomsView';
+import { RemindersView } from './components/RemindersView';
 import { ProfileView } from './components/ProfileView';
+import { PrenatalCardView } from './components/PrenatalCardView';
+import { CommunityForumView } from './components/CommunityForumView';
+import { ClinicNewsView } from './components/ClinicNewsView';
 import { TeleconsultationModal } from './components/TeleconsultationModal';
 import { SOSModal } from './components/SOSModal';
 import { InstallAppModal } from './components/InstallAppModal';
 import { ShareAccessModal } from './components/ShareAccessModal';
+import { CustomizationModal } from './components/CustomizationModal';
+import { PatientLoginView } from './components/PatientLoginView';
+import { CustomizationProvider } from './context/CustomizationContext';
+import { PatientProvider, usePatient } from './context/PatientContext';
 import { NavTab } from './types';
 import { CLINIC_INFO } from './data/mockData';
 
-export default function App() {
+function AppContent() {
+  const { patient, isLoggedIn } = usePatient();
+
   const [currentTab, setCurrentTab] = useState<NavTab>('home');
   const [isSOSOpen, setIsSOSOpen] = useState<boolean>(false);
   const [isInstallOpen, setIsInstallOpen] = useState<boolean>(false);
   const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
+  const [isCustomizationOpen, setIsCustomizationOpen] = useState<boolean>(false);
   const [activeTelehealthId, setActiveTelehealthId] = useState<string | null>(null);
+
+  // If no mother is registered yet, show the friendly Onboarding / Login screen
+  if (!isLoggedIn || !patient) {
+    return <PatientLoginView />;
+  }
 
   const handleStartTelehealth = (appointmentId: string) => {
     setActiveTelehealthId(appointmentId);
@@ -29,7 +45,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-[#2C2123] flex flex-col font-sans selection:bg-[#E6D4AF] selection:text-[#5D1425] relative">
+    <div className="min-h-screen bg-[#FDFBF7] text-[#2C2123] flex flex-col font-sans selection:bg-[#E6D4AF] selection:text-[#5D1425] relative transition-colors duration-200">
       {/* Subtle Luxury Botanical Leaf Background Watermark */}
       <div 
         className="fixed inset-0 pointer-events-none opacity-[0.035] z-0"
@@ -47,6 +63,7 @@ export default function App() {
         onOpenSOS={() => setIsSOSOpen(true)}
         onOpenInstall={() => setIsInstallOpen(true)}
         onOpenShare={() => setIsShareOpen(true)}
+        onOpenCustomization={() => setIsCustomizationOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -59,9 +76,17 @@ export default function App() {
           />
         )}
 
+        {currentTab === 'prenatal_card' && <PrenatalCardView />}
+
+        {currentTab === 'community' && <CommunityForumView />}
+
+        {currentTab === 'news' && <ClinicNewsView />}
+
         {currentTab === 'calendar' && (
           <CalendarView onStartTelehealth={handleStartTelehealth} />
         )}
+
+        {currentTab === 'reminders' && <RemindersView />}
 
         {currentTab === 'symptoms' && <SymptomsView />}
 
@@ -72,6 +97,7 @@ export default function App() {
             onOpenSOS={() => setIsSOSOpen(true)}
             onOpenInstall={() => setIsInstallOpen(true)}
             onOpenShare={() => setIsShareOpen(true)}
+            onOpenCustomization={() => setIsCustomizationOpen(true)}
           />
         )}
       </main>
@@ -108,6 +134,19 @@ export default function App() {
 
       {/* Share Access & Support Network Modal */}
       {isShareOpen && <ShareAccessModal onClose={() => setIsShareOpen(false)} />}
+
+      {/* Personalization & Font Size Customization Modal */}
+      {isCustomizationOpen && <CustomizationModal onClose={() => setIsCustomizationOpen(false)} />}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <PatientProvider>
+      <CustomizationProvider>
+        <AppContent />
+      </CustomizationProvider>
+    </PatientProvider>
   );
 }

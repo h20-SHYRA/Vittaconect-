@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { VittacareLogo } from './VittacareLogo';
+import officialLogo from '../assets/images/vittaconect_app_icon_1790788178939.jpg';
 
 interface InstallAppModalProps {
   onClose: () => void;
@@ -59,9 +60,39 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({ onClose }) => 
           </div>
         </div>
 
-        <p className="text-xs sm:text-sm text-stone-600 mb-6 leading-relaxed">
-          Você não precisa acessar o navegador toda vez! O <strong>Vittaconect</strong> funciona como um aplicativo nativo no seu celular (PWA), abrindo em tela cheia com ícone próprio na sua tela inicial.
+        <p className="text-xs sm:text-sm text-stone-600 mb-4 leading-relaxed">
+          Você não precisa acessar o navegador toda vez! O <strong>Vittaconect</strong> funciona como um aplicativo nativo no seu celular (PWA), abrindo em tela cheia com o novo ícone oficial de ouro e vinho na sua tela inicial.
         </p>
+
+        {/* Live App Icon Preview on Home Screen */}
+        <div className="mb-6 p-3.5 bg-gradient-to-r from-[#FAF6ED] to-[#F5ECE8] rounded-2xl border border-[#E6D4AF] flex items-center gap-4">
+          <div className="relative shrink-0">
+            <img
+              src={officialLogo}
+              alt="Ícone Oficial do Vittaconect"
+              className="w-16 h-16 rounded-2xl shadow-md border border-[#E6D4AF] object-cover"
+            />
+            <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#3B744C] text-white flex items-center justify-center text-[10px] font-bold border-2 border-white shadow-xs">
+              ✓
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-[#8D253D]">
+                Novo Ícone Oficial
+              </span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#E6D4AF]/60 text-[#5D1425] font-semibold">
+                iOS & Android
+              </span>
+            </div>
+            <p className="font-serif font-bold text-sm text-[#480D1B] truncate">
+              Vittaconect • Clínica Vittacare
+            </p>
+            <p className="text-[11px] text-stone-600 mt-0.5">
+              É este símbolo que aparecerá na sua tela inicial e na bandeja de apps do seu celular ao instalar!
+            </p>
+          </div>
+        </div>
 
         {/* Native 1-Click Install Button if supported by current browser */}
         {isInstallable && (

@@ -16,7 +16,7 @@ import {
   Calendar,
   Sparkles
 } from 'lucide-react';
-import { INITIAL_PATIENT } from '../data/mockData';
+import { usePatient } from '../context/PatientContext';
 
 interface ShareAccessModalProps {
   onClose: () => void;
@@ -32,6 +32,10 @@ interface SupportMember {
 }
 
 export const ShareAccessModal: React.FC<ShareAccessModalProps> = ({ onClose }) => {
+  const { patient } = usePatient();
+  const babyName = patient?.babyNickname || 'Bebê';
+  const motherName = patient?.preferredName || 'Mãezinha';
+
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'invite' | 'members'>('invite');
   const [newMemberName, setNewMemberName] = useState('');
@@ -41,9 +45,9 @@ export const ShareAccessModal: React.FC<ShareAccessModalProps> = ({ onClose }) =
   const [members, setMembers] = useState<SupportMember[]>([
     {
       id: 'mem-1',
-      name: 'Lucas Santos',
+      name: patient?.emergencyContact?.split('-')[0]?.trim() || 'Acompanhante Principal',
       role: 'Acompanhante Principal',
-      relation: 'Esposo',
+      relation: 'Rede de Apoio',
       permissions: 'full',
       status: 'active',
     },
@@ -72,7 +76,7 @@ export const ShareAccessModal: React.FC<ShareAccessModalProps> = ({ onClose }) =
   const [selectedUrlType, setSelectedUrlType] = useState<'current' | 'public'>('current');
   const appUrl = selectedUrlType === 'current' ? currentOrigin : sharedUrl;
 
-  const inviteMessage = `Olá! Convido você para acessar o Vittaconect da Clínica Vittacare e acompanhar a gestação do bebê ${INITIAL_PATIENT.babyNickname} comigo. Veja o calendário de consultas, ultrassons e desenvolvimento semanal aqui: ${appUrl}`;
+  const inviteMessage = `Olá! Convido você para acessar o Vittaconect da Clínica Vittacare e acompanhar a gestação do bebê ${babyName} comigo. Veja o calendário de consultas, ultrassons e desenvolvimento semanal aqui: ${appUrl}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(appUrl);
@@ -299,7 +303,7 @@ export const ShareAccessModal: React.FC<ShareAccessModalProps> = ({ onClose }) =
         ) : (
           <div className="space-y-3">
             <p className="text-xs text-stone-500">
-              Pessoas que você autorizou a acompanhar o pré-natal do bebê <strong>{INITIAL_PATIENT.babyNickname}</strong>:
+              Pessoas que você autorizou a acompanhar o pré-natal do bebê <strong>{babyName}</strong>:
             </p>
 
             <div className="space-y-2">

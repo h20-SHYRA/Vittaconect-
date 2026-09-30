@@ -14,7 +14,7 @@ import {
   Volume2
 } from 'lucide-react';
 import { VittacareLogo } from './VittacareLogo';
-import { INITIAL_PATIENT } from '../data/mockData';
+import { usePatient } from '../context/PatientContext';
 
 interface TeleconsultationModalProps {
   onClose: () => void;
@@ -27,13 +27,18 @@ export const TeleconsultationModal: React.FC<TeleconsultationModalProps> = ({
   professionalName = 'Enf. Carla Soares',
   role = 'Enfermeira Especialista em Saúde Materna',
 }) => {
+  const { patient } = usePatient();
+  const motherName = patient?.preferredName || patient?.name?.split(' ')[0] || 'Mãezinha';
+  const babyName = patient?.babyNickname || 'Bebê';
+  const weekNumber = patient?.currentWeek || 16;
+
   const [micActive, setMicActive] = useState(true);
   const [cameraActive, setCameraActive] = useState(true);
   const [activeTab, setActiveTab] = useState<'chat' | 'notes'>('chat');
   const [messages, setMessages] = useState<Array<{ sender: string; text: string; time: string; isDoctor: boolean }>>([
     {
       sender: 'Enf. Carla Soares',
-      text: `Olá, Mariana! Seja bem-vinda à nossa sala virtual Vittaconect. Como você e o bebê ${INITIAL_PATIENT.babyNickname} estão se sentindo hoje na 18ª semana?`,
+      text: `Olá, ${motherName}! Seja bem-vinda à nossa sala virtual Vittaconect. Como você e o bebê ${babyName} estão se sentindo hoje na ${weekNumber}ª semana?`,
       time: '16:01',
       isDoctor: true,
     },
@@ -45,7 +50,7 @@ export const TeleconsultationModal: React.FC<TeleconsultationModalProps> = ({
     if (!newMessage.trim()) return;
 
     const userMsg = {
-      sender: INITIAL_PATIENT.preferredName,
+      sender: motherName,
       text: newMessage.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isDoctor: false,
@@ -240,7 +245,7 @@ export const TeleconsultationModal: React.FC<TeleconsultationModalProps> = ({
         <div className="px-6 py-4 bg-[#23181C] border-t border-white/10 flex items-center justify-between">
           <div className="text-xs text-stone-400 hidden sm:block">
             <span>Paciente: </span>
-            <strong className="text-white">{INITIAL_PATIENT.name}</strong>
+            <strong className="text-white">{patient?.name || motherName}</strong>
           </div>
 
           {/* Central AV Buttons */}

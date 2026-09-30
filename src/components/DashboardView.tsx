@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   Video, 
@@ -13,9 +13,15 @@ import {
   Baby,
   Smile,
   Info,
-  Users
+  Users,
+  Bell,
+  CreditCard,
+  Megaphone,
+  Syringe,
+  TrendingUp
 } from 'lucide-react';
-import { CLINIC_INFO, INITIAL_PATIENT, PREGNANCY_WEEKS_DATA, INITIAL_APPOINTMENTS } from '../data/mockData';
+import { CLINIC_INFO, PREGNANCY_WEEKS_DATA, INITIAL_APPOINTMENTS } from '../data/mockData';
+import { usePatient } from '../context/PatientContext';
 import { NavTab } from '../types';
 
 interface DashboardViewProps {
@@ -25,12 +31,29 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onStartTelehealth, onOpenShare }) => {
-  const [selectedWeek, setSelectedWeek] = useState<number>(18);
+  const { patient } = usePatient();
+  const motherName = patient?.preferredName || patient?.name?.split(' ')[0] || 'Mãezinha';
+  const babyName = patient?.babyNickname || 'Bebê';
+  const patientWeek = patient?.currentWeek || 18;
+
+  const [selectedWeek, setSelectedWeek] = useState<number>(patientWeek);
   const [waterCups, setWaterCups] = useState<number>(5);
   const targetWater = 8;
 
-  const weekInfo = PREGNANCY_WEEKS_DATA[selectedWeek] || PREGNANCY_WEEKS_DATA[18];
-  const progressPercent = Math.round((selectedWeek / 40) * 100);
+  useEffect(() => {
+    if (patient?.currentWeek) {
+      setSelectedWeek(patient.currentWeek);
+    }
+  }, [patient?.currentWeek]);
+
+  // Find exact or closest week in PREGNANCY_WEEKS_DATA
+  const availableWeeks = [12, 16, 18, 20, 24, 28, 32, 36];
+  const closestWeek = availableWeeks.reduce((prev, curr) => 
+    Math.abs(curr - selectedWeek) < Math.abs(prev - selectedWeek) ? curr : prev
+  , 18);
+
+  const weekInfo = PREGNANCY_WEEKS_DATA[selectedWeek] || PREGNANCY_WEEKS_DATA[closestWeek] || PREGNANCY_WEEKS_DATA[18];
+  const progressPercent = Math.min(100, Math.round((selectedWeek / 40) * 100));
 
   // SVG circular math
   const radius = 64;
@@ -65,7 +88,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onStar
           </div>
 
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-serif font-bold text-[#480D1B] leading-tight mb-3">
-            Olá, {INITIAL_PATIENT.preferredName}! <br className="hidden sm:inline" />
+            Olá, {motherName}! <br className="hidden sm:inline" />
             <span className="italic font-normal text-[#5D1425]">
               Todo cuidado começa com você.
             </span>
@@ -90,7 +113,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onStar
                 {weekInfo.trimester}º Trimestre
               </span>
               <span className="text-xs text-stone-500">
-                Previsão de Parto: <strong className="text-stone-700">{INITIAL_PATIENT.dueDate}</strong>
+                Previsão de Parto: <strong className="text-stone-700">{patient?.dueDate || 'A definir'}</strong>
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#480D1B] mt-1">
@@ -168,7 +191,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onStar
             </div>
 
             <div className="mt-3 text-center">
-              <span className="text-xs text-stone-500">Bebê {INITIAL_PATIENT.babyNickname}</span>
+              <span className="text-xs text-stone-500">Bebê {babyName}</span>
               <p className="text-xs font-semibold text-[#5D1425]">
                 Frequência: {weekInfo.fetalHeartRateRange}
               </p>
@@ -219,6 +242,109 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onStar
         </div>
       </section>
 
+      {/* Espaços de Cuidado & Comunidade (Carteira, Fórum & Mural) */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-serif font-bold text-[#480D1B]">
+              Seus Espaços de Cuidado Vittaconect
+            </h2>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Carteira digitalizada, rede de apoio entre gestantes e comunicados da clínica
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Card 1: Carteira de Pré-natal Digital */}
+          <button
+            onClick={() => onNavigate('prenatal_card')}
+            className="p-5 rounded-3xl bg-gradient-to-br from-[#FAF0F2] via-white to-[#FAF6ED] border-2 border-[#EBBEC8] hover:border-[#8D253D] hover:shadow-md transition-all text-left flex flex-col justify-between cursor-pointer group relative overflow-hidden"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#5D1425] to-[#8D253D] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <CreditCard className="w-6 h-6 text-[#E6D4AF]" />
+              </div>
+              <span className="text-[10px] font-bold text-[#8D253D] bg-white px-2.5 py-1 rounded-full border border-[#EBBEC8]">
+                {patient?.bloodType || 'O+'} • Oficial
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="font-serif font-bold text-lg text-[#480D1B] group-hover:text-[#5D1425] transition-colors">
+                Carteira Pré-Natal Digital
+              </h3>
+              <p className="text-xs text-stone-600 line-clamp-2">
+                Cartão de gestante com tipo sanguíneo, vacinas aplicadas, curva de peso e gráfico de pressão (PA).
+              </p>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-stone-200/60 flex items-center justify-between text-xs font-bold text-[#8D253D]">
+              <span>Abrir Meu Cartão Digital</span>
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </button>
+
+          {/* Card 2: Fórum de Apoio entre Mães */}
+          <button
+            onClick={() => onNavigate('community')}
+            className="p-5 rounded-3xl bg-gradient-to-br from-[#FAF6ED] via-white to-[#F5ECE8] border-2 border-[#DEC68E] hover:border-[#B89243] hover:shadow-md transition-all text-left flex flex-col justify-between cursor-pointer group relative overflow-hidden"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#B89243] to-[#9B7731] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-[10px] font-bold text-[#9B7731] bg-white px-2.5 py-1 rounded-full border border-[#E6D4AF]">
+                Moderado 24h
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="font-serif font-bold text-lg text-[#480D1B] group-hover:text-[#5D1425] transition-colors">
+                Fórum de Apoio entre Mães
+              </h3>
+              <p className="text-xs text-stone-600 line-clamp-2">
+                Troca de experiências com mães do mesmo mês de parto, dúvidas sobre sintomas e acolhimento obstétrico.
+              </p>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-stone-200/60 flex items-center justify-between text-xs font-bold text-[#9B7731]">
+              <span>Participar da Comunidade</span>
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </button>
+
+          {/* Card 3: Mural de Notícias & Campanhas */}
+          <button
+            onClick={() => onNavigate('news')}
+            className="p-5 rounded-3xl bg-gradient-to-br from-[#FDFBF7] via-white to-[#FAF0F2] border-2 border-[#E6D4AF] hover:border-[#5D1425] hover:shadow-md transition-all text-left flex flex-col justify-between cursor-pointer group relative overflow-hidden"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#480D1B] to-[#741C30] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                <Megaphone className="w-6 h-6 text-[#E6D4AF]" />
+              </div>
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                Campanha Ativa
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="font-serif font-bold text-lg text-[#480D1B] group-hover:text-[#5D1425] transition-colors">
+                Mural da Clínica Vittacare
+              </h3>
+              <p className="text-xs text-stone-600 line-clamp-2">
+                Campanhas de vacinação (VSR & Gripe), turmas do curso de gestantes e avisos de plantão obstétrico 24h.
+              </p>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-stone-200/60 flex items-center justify-between text-xs font-bold text-[#480D1B]">
+              <span>Ver Comunicados Oficiais</span>
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </button>
+        </div>
+      </section>
+
       {/* Acesso Rápido (Prompt Requirement) */}
       <section>
         <div className="flex items-center justify-between mb-4">
@@ -226,7 +352,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onStar
           <span className="text-xs text-stone-500">Cuidado integral ao seu alcance</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Pré-natal e Exames */}
           <button
             onClick={() => onNavigate('calendar')}
@@ -248,7 +374,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, onStar
             </div>
           </button>
 
-          {/* Card 2: Videochamada */}
+          {/* Card 2: Lembretes & Orientações Médicas */}
+          <button
+            onClick={() => onNavigate('reminders')}
+            className="group p-5 rounded-2xl bg-gradient-to-br from-[#FAF6ED] via-white to-[#F5ECE8] border border-[#DEC68E] hover:border-[#B89243] hover:shadow-md transition-all text-left flex flex-col justify-between cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B89243] relative overflow-hidden"
+          >
+            <span className="absolute top-4 right-4 flex items-center gap-1 bg-[#8D253D] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+              Novo
+            </span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#FAF0F2] to-[#EBBEC8] flex items-center justify-center text-[#5D1425] shadow-xs group-hover:scale-105 transition-transform">
+                <Bell className="w-6 h-6 stroke-[2]" />
+              </div>
+            </div>
+            <div>
+              <h3 className="font-serif font-bold text-lg text-[#480D1B] group-hover:text-[#5D1425] transition-colors">
+                Lembretes Médicos
+              </h3>
+              <p className="text-xs text-stone-600 mt-1">
+                Instruções das consultas, remédios, receitas e recomendações da equipe.
+              </p>
+            </div>
+          </button>
+
+          {/* Card 3: Videochamada */}
           <button
             onClick={() => {
               if (telehealthApt) {

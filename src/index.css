@@ -43,3 +43,65 @@ body {
   background-image: radial-gradient(rgba(184, 146, 67, 0.05) 1px, transparent 0);
   background-size: 24px 24px;
 }
+
+/* Customization & Accessibility Styles */
+.app-high-contrast {
+  filter: contrast(1.15);
+}
+
+.app-high-contrast p,
+.app-high-contrast span {
+  color: #1a1012 !important;
+}
+
+.app-bold-text {
+  font-weight: 550 !important;
+}
+
+.app-bold-text p,
+.app-bold-text span,
+.app-bold-text button {
+  font-weight: 550;
+}
+
+.app-relaxed-leading {
+  line-height: 1.75 !important;
+}
+
+.app-relaxed-leading p {
+  line-height: 1.8 !important;
+}
+
+.app-reduced-motion * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* Warm / Night Comfort Theme */
+html.theme-warm body {
+  background-color: #FAF4EA !important;
+  filter: sepia(0.12) saturate(0.95);
+}
+
+html.theme-dark body {
+  background-color: #1E1618 !important;
+  color: #F8F4EA !important;
+}
+
+html.theme-dark .bg-white {
+  background-color: #271E20 !important;
+  border-color: #4A3A3D !important;
+  color: #F8F4EA !important;
+}
+
+html.theme-dark .text-stone-700,
+html.theme-dark .text-stone-600,
+html.theme-dark .text-stone-500 {
+  color: #D3C7C9 !important;
+}
+
+html.theme-dark .text-\[\#480D1B\] {
+  color: #F7D8DF !important;
+}
+
