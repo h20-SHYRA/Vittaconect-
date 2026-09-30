@@ -1,0 +1,6 @@
+{
+  "name": "Vittaconect - Clínica Vittacare",
+  "description": "Aplicativo de saúde materna e preventiva da Clínica Vittacare. A distância de duas telas, a proximidade de um cuidado que abraça.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

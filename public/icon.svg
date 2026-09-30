@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="100" fill="#FDFBF7"/>
+  <rect x="16" y="16" width="480" height="480" rx="88" stroke="#E6D4AF" stroke-width="4"/>
+  <circle cx="256" cy="256" r="210" stroke="#B89243" stroke-width="6" stroke-dasharray="8 12" opacity="0.4"/>
+  
+  <!-- Heart Shape -->
+  <path d="M256 410C256 410 110 310 110 200C110 140 155 100 210 100C235 100 250 112 256 125C262 112 277 100 302 100C357 100 402 140 402 200C402 310 256 410 256 410Z" stroke="#5D1425" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="#FAF0F2"/>
+  
+  <!-- Botanical Leaves Left -->
+  <path d="M130 190C110 165 120 130 145 135C165 140 155 180 130 190Z" fill="#336443"/>
+  <path d="M105 245C80 230 85 195 110 195C135 195 130 235 105 245Z" fill="#B89243"/>
+  <path d="M125 300C100 300 95 260 125 255C150 250 150 290 125 300Z" fill="#336443"/>
+
+  <!-- Botanical Leaves Right -->
+  <path d="M382 190C402 165 392 130 367 135C347 140 357 180 382 190Z" fill="#336443"/>
+  <path d="M407 245C432 230 427 195 402 195C377 195 382 235 407 245Z" fill="#B89243"/>
+  <path d="M387 300C412 300 417 260 387 255C362 250 362 290 387 300Z" fill="#336443"/>
+
+  <!-- Rod of Asclepius -->
+  <line x1="256" y1="90" x2="256" y2="380" stroke="#B89243" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="256" cy="80" r="16" fill="#B89243"/>
+
+  <!-- Serpent -->
+  <path d="M226 340C246 325 266 320 286 305C301 290 291 265 266 260C231 250 221 225 236 200C251 175 281 175 281 145C281 125 261 120 251 135" stroke="#B89243" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <circle cx="251" cy="135" r="6" fill="#5D1425"/>
+</svg>

@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  
+  --color-gold-50: #FAF6ED;
+  --color-gold-100: #F3EBD8;
+  --color-gold-200: #E6D4AF;
+  --color-gold-300: #D8BD83;
+  --color-gold-400: #CAA55C;
+  --color-gold-500: #B89243;
+  --color-gold-600: #9B7731;
+  --color-gold-700: #7C5D23;
+
+  --color-wine-50: #FAF0F2;
+  --color-wine-100: #F5DFE4;
+  --color-wine-200: #EBBEC8;
+  --color-wine-600: #8D253D;
+  --color-wine-700: #741C30;
+  --color-wine-800: #5D1425;
+  --color-wine-900: #480D1B;
+  --color-wine-950: #2C0610;
+
+  --color-cream-50: #FDFBF7;
+  --color-cream-100: #F8F4EA;
+  --color-cream-200: #F0E8D7;
+  --color-cream-300: #E5D9C2;
+
+  --color-leaf-50: #F2F7F3;
+  --color-leaf-100: #DFEDE2;
+  --color-leaf-500: #417C55;
+  --color-leaf-600: #336443;
+  --color-leaf-700: #254B32;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+/* Subtle botanical watermark pattern */
+.bg-vittacare-pattern {
+  background-image: radial-gradient(rgba(184, 146, 67, 0.05) 1px, transparent 0);
+  background-size: 24px 24px;
+}
