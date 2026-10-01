@@ -38,16 +38,17 @@ interface ProfileViewProps {
 export const ProfileView: React.FC<ProfileViewProps> = ({ 
   onOpenSOS, 
   onOpenInstall, 
-  onOpenShare,
+  onOpenShare, 
   onOpenCustomization 
 }) => {
   const { settings, updateSetting, increaseFontSize, decreaseFontSize } = useCustomization();
-  const { patient, logout } = usePatient();
+  const { patient, logout, switchMode } = usePatient();
   const [isEditOpen, setIsEditOpen] = useState(false);
 
-  const motherName = patient?.name || 'Mãezinha';
-  const motherInitial = patient?.preferredName ? patient.preferredName[0].toUpperCase() : 'M';
-  const motherAge = patient?.age || 28;
+  const isWomanMode = patient?.userMode === 'saude_feminina';
+  const personName = patient?.name || (isWomanMode ? 'Camila Alencar' : 'Mariana Silva');
+  const personInitial = patient?.preferredName ? patient.preferredName[0].toUpperCase() : 'C';
+  const personAge = patient?.age || (isWomanMode ? 32 : 28);
   const currentWeek = patient?.currentWeek || 16;
   const babyName = patient?.babyNickname || 'Bebê';
   const babyGenderLabel = patient?.babyGender === 'boy' ? 'Menino' : patient?.babyGender === 'girl' ? 'Menina' : 'Surpresa';
@@ -66,13 +67,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-[#8D253D] uppercase tracking-wider mb-1">
             <span className="w-2 h-2 rounded-full bg-[#B89243]" />
-            Carteira Digital da Gestante
+            {isWomanMode ? 'Carteira de Saúde da Mulher' : 'Carteira Digital da Gestante'}
           </div>
           <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#480D1B]">
             Meu Perfil & Prontuário Vittacare
           </h1>
           <p className="text-sm text-stone-600 mt-1">
-            Identificação materna, histórico de vacinas e equipe de referência.
+            {isWomanMode
+              ? 'Identificação clínica, parâmetros ginecológicos e equipe de referência.'
+              : 'Identificação materna, histórico de vacinas e equipe de referência.'}
           </p>
         </div>
 
@@ -87,54 +90,94 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </button>
           <button
             onClick={() => {
-              if (window.confirm('Deseja realmente sair? Você poderá cadastrar outra gestante a qualquer momento.')) {
-                logout();
-              }
+              logout();
             }}
-            className="flex items-center gap-1 px-3 py-2 rounded-2xl bg-[#FAF0F2] border border-[#EBBEC8] text-[#8D253D] hover:bg-rose-100 text-xs font-semibold transition-all cursor-pointer"
-            title="Trocar de Mãezinha ou Sair"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-[#FAF0F2] border border-[#EBBEC8] text-[#8D253D] hover:bg-rose-100 text-xs font-bold transition-all cursor-pointer shadow-xs"
+            title="Sair e abrir tela inicial de cadastro para alternar modo"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Trocar</span>
+            <span>Sair / Trocar de Modo</span>
           </button>
         </div>
       </div>
 
-      {/* Maternal Health Passport Card */}
+      {/* Mode Information Card */}
+      <div className="p-4 rounded-3xl bg-white border border-[#DEC68E] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{isWomanMode ? '🌸' : '🤰'}</span>
+          <div>
+            <strong className="text-[#480D1B] block font-serif text-sm">
+              Perfil Ativo: {isWomanMode ? 'Saúde Feminina & Prevenção Ginecológica' : 'Saúde Materna & Gestação'}
+            </strong>
+            <span className="text-stone-500 block">
+              Para alternar entre o Modo Gestante e o Modo Saúde da Mulher, clique em <strong>Sair / Trocar de Modo</strong> acima para acessar a tela de cadastro.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Health Passport Card */}
       <section className="bg-gradient-to-br from-[#FAF0F2] via-white to-[#FAF6ED] rounded-3xl p-6 sm:p-8 border border-[#E6D4AF] shadow-sm relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-[#E6D4AF]/60">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#DEC68E] via-[#B89243] to-[#5D1425] p-1 shadow-md">
               <div className="w-full h-full rounded-full bg-[#480D1B] flex items-center justify-center text-white text-2xl font-serif font-bold">
-                {motherInitial}
+                {personInitial}
               </div>
             </div>
             <div>
               <h2 className="font-serif font-bold text-xl sm:text-2xl text-[#480D1B]">
-                {motherName}
+                {personName}
               </h2>
               <p className="text-xs text-stone-600 mt-0.5">
-                {motherAge} anos · Gestante ({currentWeek}ª semana de gestação)
+                {personAge} anos · {isWomanMode ? 'Paciente Ginecológica' : `Gestante (${currentWeek}ª semana)`}
               </p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-[11px] font-bold text-[#8D253D] bg-white px-2 py-0.5 rounded-full border border-[#EBBEC8]">
-                  Tipo: {patient?.bloodType || 'A definir'}
-                </span>
-                <span className="text-[11px] text-stone-500">
-                  DPP: <strong className="text-stone-700">{patient?.dueDate || 'A calcular'}</strong>
-                </span>
+                {isWomanMode ? (
+                  <>
+                    <span className="text-[11px] font-bold text-[#9B7731] bg-white px-2 py-0.5 rounded-full border border-[#E6D4AF]">
+                      Ciclo: {patient?.cycleDurationDays || 28} dias
+                    </span>
+                    <span className="text-[11px] text-stone-500">
+                      Fluxo: <strong className="text-stone-700">{patient?.periodDurationDays || 5} dias</strong>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[11px] font-bold text-[#8D253D] bg-white px-2 py-0.5 rounded-full border border-[#EBBEC8]">
+                      Tipo: {patient?.bloodType || 'A definir'}
+                    </span>
+                    <span className="text-[11px] text-stone-500">
+                      DPP: <strong className="text-stone-700">{patient?.dueDate || 'A calcular'}</strong>
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
           <div className="text-left sm:text-right">
-            <span className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold block">
-              Bebê a Caminho
-            </span>
-            <span className="font-serif font-bold text-xl text-[#5D1425]">
-              {babyName}
-            </span>
-            <span className="text-xs text-stone-500 block">{babyGenderLabel} · {trimester}º Trimestre</span>
+            {isWomanMode ? (
+              <>
+                <span className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold block">
+                  Método Contraceptivo
+                </span>
+                <span className="font-serif font-bold text-base sm:text-lg text-[#5D1425] block truncate max-w-xs">
+                  {patient?.contraceptiveMethod || 'Preservativo'}
+                </span>
+                <span className="text-xs text-stone-500 block">Autocuidado Preventivo</span>
+              </>
+            ) : (
+              <>
+                <span className="text-[11px] uppercase tracking-wider text-stone-500 font-semibold block">
+                  Bebê a Caminho
+                </span>
+                <span className="font-serif font-bold text-xl text-[#5D1425]">
+                  {babyName}
+                </span>
+                <span className="text-xs text-stone-500 block">{babyGenderLabel} · {trimester}º Trimestre</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -142,10 +185,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6">
           <div className="p-4 rounded-2xl bg-white border border-[#E6D4AF]/60 shadow-xs">
             <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
-              Médico Obstetra
+              {isWomanMode ? 'Médico Ginecologista' : 'Médico Obstetra'}
             </span>
             <h4 className="font-serif font-bold text-base text-[#480D1B] mt-1">
-              {patient?.doctorName || 'Dr. Roberto Silva (Obstetra)'}
+              {patient?.doctorName || (isWomanMode ? 'Dra. Beatriz Lins (Ginecologista)' : 'Dr. Roberto Silva (Obstetra)')}
             </h4>
             <span className="text-xs text-stone-500 block mt-0.5">
               {patient?.doctorCrm || 'CRM-SP 142.890'}
@@ -160,7 +203,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               Enf. Carla Soares
             </h4>
             <span className="text-xs text-stone-500 block mt-0.5">
-              COREN-SP 214.502 (Enfermagem Obstétrica)
+              COREN-SP 214.502 (Saúde da Mulher)
             </span>
           </div>
 

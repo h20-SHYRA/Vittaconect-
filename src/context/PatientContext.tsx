@@ -1,17 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { PatientProfile } from '../types';
+import { PatientProfile, UserMode } from '../types';
+import { DEFAULT_WOMAN_PATIENT } from '../data/mockData';
 
 interface PatientContextType {
   patient: PatientProfile | null;
   isLoggedIn: boolean;
+  userMode: UserMode;
   registerOrUpdatePatient: (data: Partial<PatientProfile>) => void;
+  switchMode: (mode: UserMode) => void;
   logout: () => void;
   loadDemoPatient: () => void;
+  loadDemoWoman: () => void;
 }
 
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
 
-const PATIENT_STORAGE_KEY = 'vittaconect_patient_profile_v1';
+const PATIENT_STORAGE_KEY = 'vittaconect_patient_profile_active_v1';
 
 // Calculate estimated due date based on current weeks
 export const calculateDueDateFromWeeks = (currentWeeks: number): string => {
@@ -26,6 +30,29 @@ export const calculateDueDateFromWeeks = (currentWeeks: number): string => {
   return `${now.getDate()} de ${months[now.getMonth()]} de ${now.getFullYear()}`;
 };
 
+export const DEFAULT_PREGNANT_PATIENT: PatientProfile = {
+  id: 'patient-mariana',
+  userMode: 'gestante',
+  name: 'Mariana Silva Santos',
+  preferredName: 'Mariana',
+  age: 29,
+  phone: '(11) 98765-4321',
+  babyNickname: 'Theo',
+  babyGender: 'boy',
+  currentWeek: 18,
+  dueDate: calculateDueDateFromWeeks(18),
+  bloodType: 'O+',
+  isFirstPregnancy: true,
+  emergencyContact: 'Lucas Santos (Esposo) - (11) 99123-4567',
+  allergies: 'Dipirona (leve prurido cutâneo)',
+  doctorName: 'Dr. Roberto Silva (Obstetra)',
+  doctorCrm: 'CRM-SP 142.890',
+  registeredAt: '2026-06-15T10:00:00.000Z',
+  initialWeight: 62.0,
+  currentWeight: 65.0,
+  heightCm: 165,
+};
+
 export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [patient, setPatient] = useState<PatientProfile | null>(() => {
     try {
@@ -34,9 +61,9 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return JSON.parse(saved);
       }
     } catch (e) {
-      console.warn('Erro ao carregar perfil da gestante', e);
+      console.warn('Erro ao carregar perfil da usuária', e);
     }
-    // No hardcoded pre-defined patient! Starts as null so the mother registers herself
+    // Starts as null so the Welcome / Registration screen appears when opening the app!
     return null;
   });
 
@@ -48,34 +75,59 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
         localStorage.removeItem(PATIENT_STORAGE_KEY);
       }
     } catch (e) {
-      console.warn('Erro ao salvar perfil da gestante', e);
+      console.warn('Erro ao salvar perfil da usuária', e);
     }
   }, [patient]);
 
   const registerOrUpdatePatient = (data: Partial<PatientProfile>) => {
     setPatient((prev) => {
-      const base: PatientProfile = prev || {
-        id: `patient-${Date.now()}`,
-        name: data.name || '',
-        preferredName: data.preferredName || data.name?.split(' ')[0] || '',
-        age: data.age || 28,
-        phone: data.phone || '',
-        babyNickname: data.babyNickname || 'Bebê',
-        babyGender: data.babyGender || 'surprise',
-        currentWeek: data.currentWeek || 16,
-        dueDate: data.dueDate || calculateDueDateFromWeeks(data.currentWeek || 16),
-        bloodType: data.bloodType || 'A+',
-        isFirstPregnancy: data.isFirstPregnancy ?? true,
-        emergencyContact: data.emergencyContact || 'Familiar de Apoio',
-        allergies: data.allergies || 'Nenhuma alergia conhecida',
-        doctorName: data.doctorName || 'Dr. Roberto Silva (Obstetra)',
-        doctorCrm: data.doctorCrm || 'CRM-SP 142.890',
-        registeredAt: new Date().toISOString(),
-      };
+      const currentMode = data.userMode || prev?.userMode || 'gestante';
+      
+      const base: PatientProfile = prev || (currentMode === 'gestante' 
+        ? {
+            id: `patient-${Date.now()}`,
+            userMode: 'gestante',
+            name: data.name || '',
+            preferredName: data.preferredName || data.name?.split(' ')[0] || '',
+            age: data.age || 28,
+            phone: data.phone || '',
+            babyNickname: data.babyNickname || 'Bebê',
+            babyGender: data.babyGender || 'surprise',
+            currentWeek: data.currentWeek || 16,
+            dueDate: data.dueDate || calculateDueDateFromWeeks(data.currentWeek || 16),
+            bloodType: data.bloodType || 'A+',
+            isFirstPregnancy: data.isFirstPregnancy ?? true,
+            emergencyContact: data.emergencyContact || 'Familiar de Apoio',
+            allergies: data.allergies || 'Nenhuma alergia conhecida',
+            doctorName: data.doctorName || 'Dr. Roberto Silva (Obstetra)',
+            doctorCrm: data.doctorCrm || 'CRM-SP 142.890',
+            registeredAt: new Date().toISOString(),
+          }
+        : {
+            id: `patient-woman-${Date.now()}`,
+            userMode: 'saude_feminina',
+            name: data.name || '',
+            preferredName: data.preferredName || data.name?.split(' ')[0] || '',
+            age: data.age || 30,
+            phone: data.phone || '',
+            lastPeriodDate: data.lastPeriodDate || new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+            cycleDurationDays: data.cycleDurationDays || 28,
+            periodDurationDays: data.periodDurationDays || 5,
+            contraceptiveMethod: data.contraceptiveMethod || 'Preservativo',
+            pregnancyGoal: data.pregnancyGoal || 'awareness',
+            lifeStage: data.lifeStage || 'reprodutiva',
+            emergencyContact: data.emergencyContact || 'Contato de Confiança',
+            allergies: data.allergies || 'Nenhuma alergia conhecida',
+            doctorName: data.doctorName || 'Dra. Beatriz Lins (Ginecologista)',
+            doctorCrm: data.doctorCrm || 'CRM-SP 156.412',
+            registeredAt: new Date().toISOString(),
+          }
+      );
 
       const updated: PatientProfile = {
         ...base,
         ...data,
+        userMode: data.userMode || base.userMode || 'gestante',
         preferredName: data.preferredName || (data.name ? data.name.split(' ')[0] : base.preferredName),
         dueDate: data.dueDate || (data.currentWeek ? calculateDueDateFromWeeks(data.currentWeek) : base.dueDate),
       };
@@ -84,40 +136,64 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
+  const switchMode = (mode: UserMode) => {
+    if (mode === 'saude_feminina') {
+      if (patient?.userMode === 'gestante') {
+        registerOrUpdatePatient({
+          userMode: 'saude_feminina',
+          lastPeriodDate: patient.lastPeriodDate || '2026-09-18',
+          cycleDurationDays: 28,
+          periodDurationDays: 5,
+          contraceptiveMethod: 'Preservativo / Autoconhecimento',
+        });
+      }
+    } else {
+      if (patient?.userMode === 'saude_feminina') {
+        registerOrUpdatePatient({
+          userMode: 'gestante',
+          currentWeek: 16,
+          babyNickname: 'Meu Bebê',
+          dueDate: calculateDueDateFromWeeks(16),
+          bloodType: 'O+',
+        });
+      }
+    }
+  };
+
   const logout = () => {
+    try {
+      localStorage.removeItem(PATIENT_STORAGE_KEY);
+      sessionStorage.removeItem(PATIENT_STORAGE_KEY);
+      localStorage.removeItem('vittaconect_patient_profile_v1');
+      localStorage.removeItem('vittaconect_patient_profile_v2');
+      localStorage.removeItem('vittaconect_patient_profile_active_v1');
+    } catch (e) {
+      console.warn('Erro ao limpar storage no logout', e);
+    }
     setPatient(null);
   };
 
   const loadDemoPatient = () => {
-    const demo: PatientProfile = {
-      id: 'demo-patient',
-      name: 'Mariana Silva Santos',
-      preferredName: 'Mariana',
-      age: 29,
-      phone: '(11) 98765-4321',
-      babyNickname: 'Theo',
-      babyGender: 'boy',
-      currentWeek: 18,
-      dueDate: calculateDueDateFromWeeks(18),
-      bloodType: 'O+',
-      isFirstPregnancy: true,
-      emergencyContact: 'Lucas Santos (Esposo) - (11) 99123-4567',
-      allergies: 'Dipirona (leve prurido cutâneo)',
-      doctorName: 'Dr. Roberto Silva (Obstetra)',
-      doctorCrm: 'CRM-SP 142.890',
-      registeredAt: new Date().toISOString(),
-    };
-    setPatient(demo);
+    setPatient(DEFAULT_PREGNANT_PATIENT);
   };
+
+  const loadDemoWoman = () => {
+    setPatient(DEFAULT_WOMAN_PATIENT);
+  };
+
+  const currentMode: UserMode = patient?.userMode || 'gestante';
 
   return (
     <PatientContext.Provider
       value={{
         patient,
         isLoggedIn: !!patient,
+        userMode: currentMode,
         registerOrUpdatePatient,
+        switchMode,
         logout,
         loadDemoPatient,
+        loadDemoWoman,
       }}
     >
       {children}

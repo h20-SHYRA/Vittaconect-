@@ -1,5 +1,5 @@
 import React from 'react';
-import { PhoneCall, Bell, ShieldAlert, HeartHandshake, Smartphone, Users, Sliders, Type } from 'lucide-react';
+import { PhoneCall, Bell, ShieldAlert, HeartHandshake, Smartphone, Users, Sliders, Type, LogOut } from 'lucide-react';
 import { VittacareLogo } from './VittacareLogo';
 import { CLINIC_INFO } from '../data/mockData';
 import { usePatient } from '../context/PatientContext';
@@ -22,108 +22,184 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectTab, 
   activeTab 
 }) => {
-  const { patient } = usePatient();
-  const motherName = patient?.preferredName || patient?.name?.split(' ')[0] || 'Mãezinha';
-  const initialLetter = motherName ? motherName[0].toUpperCase() : 'M';
-  const weekLabel = patient?.currentWeek ? `${patient.currentWeek}ª Semana` : 'Pré-natal';
+  const { patient, switchMode, logout } = usePatient();
+  const isWomanMode = patient?.userMode === 'saude_feminina';
+  const personName = patient?.preferredName || patient?.name?.split(' ')[0] || (isWomanMode ? 'Camila' : 'Mariana');
+  const initialLetter = personName ? personName[0].toUpperCase() : 'M';
+  const statusBadge = isWomanMode 
+    ? (patient?.cycleDurationDays ? `Ciclo ${patient.cycleDurationDays}d` : 'Saúde Mulher')
+    : (patient?.currentWeek ? `${patient.currentWeek}ª Semana` : 'Pré-natal');
+
   return (
     <header className="sticky top-0 z-30 w-full bg-[#FDFBF7]/95 backdrop-blur-md border-b border-[#E6D4AF]/50 transition-all">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between">
         {/* Brand Zone */}
         <button
-          onClick={() => onSelectTab('home')}
+          onClick={() => onSelectTab(isWomanMode ? 'woman_home' : 'home')}
           className="cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B89243] rounded-lg transition-transform active:scale-[0.99] text-left"
           aria-label="Ir para tela inicial Vittaconect"
         >
           <VittacareLogo size="md" />
         </button>
 
-        {/* Navigation links for tablet & desktop */}
+        {/* Dynamic Navigation links for tablet & desktop */}
         <nav className="hidden lg:flex items-center gap-4 xl:gap-5 text-xs xl:text-sm font-medium text-stone-600">
-          <button
-            onClick={() => onSelectTab('home')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-              activeTab === 'home'
-                ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-            }`}
-          >
-            Início
-          </button>
-          <button
-            onClick={() => onSelectTab('prenatal_card')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-              activeTab === 'prenatal_card'
-                ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-            }`}
-          >
-            Carteira Digital
-          </button>
-          <button
-            onClick={() => onSelectTab('community')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-              activeTab === 'community'
-                ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-            }`}
-          >
-            Fórum de Apoio
-          </button>
-          <button
-            onClick={() => onSelectTab('news')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-              activeTab === 'news'
-                ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-            }`}
-          >
-            Mural Vittacare
-          </button>
-          <button
-            onClick={() => onSelectTab('calendar')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-              activeTab === 'calendar'
-                ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-            }`}
-          >
-            Agenda
-          </button>
-          <button
-            onClick={() => onSelectTab('reminders')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-              activeTab === 'reminders'
-                ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-            }`}
-          >
-            Lembretes
-          </button>
-          <button
-            onClick={() => onSelectTab('symptoms')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-              activeTab === 'symptoms'
-                ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-            }`}
-          >
-            Diário
-          </button>
-          <button
-            onClick={() => onSelectTab('education')}
-            className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-              activeTab === 'education'
-                ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-            }`}
-          >
-            Educação
-          </button>
+          {isWomanMode ? (
+            <>
+              {/* WOMAN HEALTH TABS */}
+              <button
+                onClick={() => onSelectTab('woman_home')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'woman_home'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Início & Ciclo
+              </button>
+              <button
+                onClick={() => onSelectTab('cycle_tracker')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'cycle_tracker'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Rastreador de Ciclo & Ovulação
+              </button>
+              <button
+                onClick={() => onSelectTab('preventive_screening')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'preventive_screening'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Prevenção & Exames
+              </button>
+              <button
+                onClick={() => onSelectTab('woman_education')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'woman_education'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Trilhas de Saúde
+              </button>
+              <button
+                onClick={() => onSelectTab('news')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'news'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Mural Vittacare
+              </button>
+            </>
+          ) : (
+            <>
+              {/* PREGNANCY TABS */}
+              <button
+                onClick={() => onSelectTab('home')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'home'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Início
+              </button>
+              <button
+                onClick={() => onSelectTab('prenatal_card')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'prenatal_card'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Carteira Digital
+              </button>
+              <button
+                onClick={() => onSelectTab('community')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'community'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Fórum de Apoio
+              </button>
+              <button
+                onClick={() => onSelectTab('news')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'news'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Mural Vittacare
+              </button>
+              <button
+                onClick={() => onSelectTab('calendar')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'calendar'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Agenda
+              </button>
+              <button
+                onClick={() => onSelectTab('reminders')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'reminders'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Lembretes
+              </button>
+              <button
+                onClick={() => onSelectTab('symptoms')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'symptoms'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Diário
+              </button>
+              <button
+                onClick={() => onSelectTab('education')}
+                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
+                  activeTab === 'education'
+                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
+                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
+                }`}
+              >
+                Educação
+              </button>
+            </>
+          )}
         </nav>
 
-        {/* Action Zone: Share, Install App, SOS 24h & Patient Avatar */}
+        {/* Action Zone: Sair (Logout), Accessibility, Share, Install App, SOS 24h & Patient Avatar */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Logout / Sair Button (Directly returns to Registration Screen) */}
+          <button
+            onClick={() => {
+              logout();
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-[#8D253D] bg-[#FAF0F2] border border-[#EBBEC8] hover:bg-rose-100 active:scale-[0.98] transition-all cursor-pointer shadow-2xs"
+            title="Sair para a tela inicial de cadastro e alternância de modos"
+            aria-label="Sair da conta e voltar ao cadastro"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sair</span>
+          </button>
+
           {/* Customization / Font Size & Accessibility */}
           <button
             onClick={onOpenCustomization}
@@ -181,16 +257,16 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={() => onSelectTab('profile')}
             className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-stone-100 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B89243]"
-            title={`Ver Carteira de ${motherName}`}
+            title={`Ver Perfil de ${personName}`}
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#DEC68E] to-[#B89243] flex items-center justify-center text-white font-serif font-bold text-sm shadow-xs border border-white">
               {initialLetter}
             </div>
             <div className="hidden lg:flex flex-col">
               <span className="text-xs font-semibold text-[#480D1B] leading-none">
-                {motherName}
+                {personName}
               </span>
-              <span className="text-[10px] text-stone-500 font-medium">{weekLabel}</span>
+              <span className="text-[10px] text-stone-500 font-medium">{statusBadge}</span>
             </div>
           </button>
         </div>

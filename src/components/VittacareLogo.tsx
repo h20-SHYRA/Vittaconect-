@@ -1,5 +1,5 @@
 import React from 'react';
-import officialLogo from '../assets/images/vittaconect_app_icon_1790788178939.jpg';
+import officialLogo from '../assets/images/vittaconect_app_tray_icon_1790898586645.jpg';
 
 interface VittacareLogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';

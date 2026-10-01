@@ -11,9 +11,13 @@ import {
   BookOpen, 
   User, 
   X,
-  Sparkles
+  Sparkles,
+  Compass,
+  ShieldCheck,
+  RefreshCw
 } from 'lucide-react';
 import { NavTab } from '../types';
+import { usePatient } from '../context/PatientContext';
 
 interface BottomNavProps {
   activeTab: NavTab;
@@ -21,9 +25,21 @@ interface BottomNavProps {
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChangeTab }) => {
+  const { patient, logout } = usePatient();
+  const isWomanMode = patient?.userMode === 'saude_feminina';
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
-  const primaryTabs = [
+  // Tabs for Woman Mode (Non-pregnant)
+  const womanPrimaryTabs = [
+    { id: 'woman_home' as NavTab, label: 'Início', icon: Home },
+    { id: 'cycle_tracker' as NavTab, label: 'Ciclo', icon: Compass },
+    { id: 'preventive_screening' as NavTab, label: 'Prevenção', icon: ShieldCheck },
+    { id: 'woman_education' as NavTab, label: 'Trilhas', icon: BookOpen },
+    { id: 'news' as NavTab, label: 'Mural', icon: Megaphone },
+  ];
+
+  // Tabs for Pregnant Mode
+  const pregnantPrimaryTabs = [
     { id: 'home' as NavTab, label: 'Início', icon: Home },
     { id: 'prenatal_card' as NavTab, label: 'Carteira', icon: CreditCard },
     { id: 'community' as NavTab, label: 'Fórum', icon: Users },
@@ -31,13 +47,22 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChangeTab }) 
     { id: 'calendar' as NavTab, label: 'Agenda', icon: Calendar },
   ];
 
-  const secondaryTabs = [
+  const primaryTabs = isWomanMode ? womanPrimaryTabs : pregnantPrimaryTabs;
+
+  const pregnantSecondaryTabs = [
     { id: 'reminders' as NavTab, label: 'Lembretes Médicos', desc: 'Preparo de exames e medicações', icon: Bell },
     { id: 'symptoms' as NavTab, label: 'Diário de Sintomas', desc: 'Humor, queixas e hidratação', icon: Activity },
     { id: 'education' as NavTab, label: 'Prevenção & Cuidados', desc: 'Artigos e guias da Febrasgo', icon: BookOpen },
     { id: 'profile' as NavTab, label: 'Meu Perfil & Ajustes', desc: 'Dados da mãe e tamanho de fonte', icon: User },
   ];
 
+  const womanSecondaryTabs = [
+    { id: 'calendar' as NavTab, label: 'Minha Agenda', desc: 'Consultas ginecológicas e exames', icon: Calendar },
+    { id: 'reminders' as NavTab, label: 'Lembretes & Alertas', desc: 'Medicamentos e rotinas preventivas', icon: Bell },
+    { id: 'profile' as NavTab, label: 'Meu Perfil & Ajustes', desc: 'Dados ginecológicos e tamanho de fonte', icon: User },
+  ];
+
+  const secondaryTabs = isWomanMode ? womanSecondaryTabs : pregnantSecondaryTabs;
   const isSecondaryActive = secondaryTabs.some((t) => t.id === activeTab);
 
   return (
@@ -45,7 +70,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChangeTab }) 
       {/* Bottom Sheet Menu for "Mais" */}
       {isMoreMenuOpen && (
         <div 
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex flex-col justify-end md:hidden animate-fadeIn"
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex flex-col justify-end lg:hidden animate-fadeIn"
           onClick={() => setIsMoreMenuOpen(false)}
         >
           <div 
@@ -64,6 +89,27 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChangeTab }) 
                 className="p-1 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Sair / Logout to Registration Screen */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#FAF6ED] to-[#FAF0F2] border border-[#E6D4AF] flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#8D253D] block">
+                  Perfil em Uso
+                </span>
+                <strong className="font-serif text-xs text-[#480D1B]">
+                  {isWomanMode ? '🌸 Modo Saúde Feminina' : '🤰 Modo Gestante'}
+                </strong>
+              </div>
+              <button
+                onClick={() => {
+                  logout();
+                  setIsMoreMenuOpen(false);
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-[#5D1425] text-white text-xs font-bold shadow-xs hover:bg-[#741C30] cursor-pointer"
+              >
+                Sair / Trocar Modo
               </button>
             </div>
 

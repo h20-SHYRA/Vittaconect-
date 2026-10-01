@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { VittacareLogo } from './VittacareLogo';
-import officialLogo from '../assets/images/vittaconect_app_icon_1790788178939.jpg';
+import officialLogo from '../assets/images/vittaconect_app_tray_icon_1790898586645.jpg';
 
 interface InstallAppModalProps {
   onClose: () => void;

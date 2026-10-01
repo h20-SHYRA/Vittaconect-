@@ -15,18 +15,25 @@ import {
   PhoneCall,
   UserCheck
 } from 'lucide-react';
-import { INITIAL_CLINIC_NEWS, CLINIC_INFO } from '../data/mockData';
+import { INITIAL_CLINIC_NEWS, INITIAL_WOMAN_CLINIC_NEWS, CLINIC_INFO } from '../data/mockData';
 import { ClinicNewsItem } from '../types';
 import { usePatient } from '../context/PatientContext';
 
 export const ClinicNewsView: React.FC = () => {
   const { patient } = usePatient();
+  const isWomanMode = patient?.userMode === 'saude_feminina';
+  const defaultList = isWomanMode ? INITIAL_WOMAN_CLINIC_NEWS : INITIAL_CLINIC_NEWS;
 
-  const [newsList, setNewsList] = useState<ClinicNewsItem[]>(INITIAL_CLINIC_NEWS);
+  const [newsList, setNewsList] = useState<ClinicNewsItem[]>(defaultList);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [registeredEvents, setRegisteredEvents] = useState<{ [newsId: string]: boolean }>({});
   const [savedReminders, setSavedReminders] = useState<{ [newsId: string]: boolean }>({});
   const [selectedNewsDetail, setSelectedNewsDetail] = useState<ClinicNewsItem | null>(null);
+
+  React.useEffect(() => {
+    setNewsList(isWomanMode ? INITIAL_WOMAN_CLINIC_NEWS : INITIAL_CLINIC_NEWS);
+    setSelectedCategory('all');
+  }, [isWomanMode]);
 
   const handleRegisterEvent = (newsId: string) => {
     setRegisteredEvents((prev) => ({ ...prev, [newsId]: true }));
@@ -66,13 +73,17 @@ export const ClinicNewsView: React.FC = () => {
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF0F2] border border-[#EBBEC8] text-[#8D253D] text-xs font-semibold uppercase tracking-wider mb-2">
             <Megaphone className="w-3.5 h-3.5 text-[#B89243]" />
-            <span>Comunicados & Eventos Oficiais • Clínica Vittacare</span>
+            <span>
+              {isWomanMode ? 'Saúde Feminina & Prevenção • Clínica Vittacare' : 'Comunicados & Eventos Oficiais • Clínica Vittacare'}
+            </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#480D1B]">
             Mural de Notícias & Campanhas
           </h1>
           <p className="text-xs sm:text-sm text-stone-600 mt-1">
-            Fique por dentro de campanhas de vacinação, abertura de turmas de curso de gestantes e plantões especiais da clínica.
+            {isWomanMode
+              ? 'Campanhas preventivas, workshops de climatério/menopausa, mutirão de rastreio mamário e plantão ginecológico 24h.'
+              : 'Fique por dentro de campanhas de vacinação, abertura de turmas de curso de gestantes e plantões obstétricos da clínica.'}
           </p>
         </div>
 
@@ -83,7 +94,7 @@ export const ClinicNewsView: React.FC = () => {
           </div>
           <div>
             <span className="text-[10px] uppercase font-bold text-stone-500 block">
-              Pronto-Atendimento Obstétrico
+              {isWomanMode ? 'Pronto-Atendimento Ginecológico' : 'Pronto-Atendimento Obstétrico'}
             </span>
             <span className="font-serif font-bold text-xs sm:text-sm text-[#480D1B]">
               Plantão 24h: {CLINIC_INFO.phone24h}
@@ -105,29 +116,71 @@ export const ClinicNewsView: React.FC = () => {
           📰 Todos os Comunicados
         </button>
 
-        <button
-          onClick={() => setSelectedCategory('vaccination')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-            selectedCategory === 'vaccination'
-              ? 'bg-[#5D1425] text-white shadow-2xs'
-              : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
-          }`}
-        >
-          <Syringe className="w-3.5 h-3.5 text-[#8D253D]" />
-          <span>Campanhas de Vacinação</span>
-        </button>
+        {isWomanMode ? (
+          <>
+            <button
+              onClick={() => setSelectedCategory('campaign')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                selectedCategory === 'campaign'
+                  ? 'bg-[#5D1425] text-white shadow-2xs'
+                  : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#8D253D]" />
+              <span>Campanhas de Rastreio</span>
+            </button>
 
-        <button
-          onClick={() => setSelectedCategory('course')}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-            selectedCategory === 'course'
-              ? 'bg-[#5D1425] text-white shadow-2xs'
-              : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
-          }`}
-        >
-          <GraduationCap className="w-3.5 h-3.5 text-[#B89243]" />
-          <span>Cursos de Gestantes</span>
-        </button>
+            <button
+              onClick={() => setSelectedCategory('workshop')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                selectedCategory === 'workshop'
+                  ? 'bg-[#5D1425] text-white shadow-2xs'
+                  : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-[#B89243]" />
+              <span>Workshops & Encontros</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedCategory('vaccination')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                selectedCategory === 'vaccination'
+                  ? 'bg-[#5D1425] text-white shadow-2xs'
+                  : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              <Syringe className="w-3.5 h-3.5 text-[#8D253D]" />
+              <span>Vacina HPV & Adulta</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => setSelectedCategory('vaccination')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                selectedCategory === 'vaccination'
+                  ? 'bg-[#5D1425] text-white shadow-2xs'
+                  : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              <Syringe className="w-3.5 h-3.5 text-[#8D253D]" />
+              <span>Campanhas de Vacinação</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedCategory('course')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                selectedCategory === 'course'
+                  ? 'bg-[#5D1425] text-white shadow-2xs'
+                  : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-[#B89243]" />
+              <span>Cursos de Gestantes</span>
+            </button>
+          </>
+        )}
 
         <button
           onClick={() => setSelectedCategory('oncall')}
@@ -154,48 +207,56 @@ export const ClinicNewsView: React.FC = () => {
         </button>
       </div>
 
-      {/* Featured Highlight Campaign Banner */}
+      {/* Featured Highlight Campaign Banner (Dynamic per mode with same red luxury styling) */}
       <div className="bg-gradient-to-r from-[#5D1425] via-[#741C30] to-[#480D1B] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 w-80 h-80 rounded-full bg-white/5 blur-2xl pointer-events-none" />
 
         <div className="relative z-10 max-w-2xl space-y-3">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-[#E6D4AF] text-[11px] font-bold border border-white/20">
             <Sparkles className="w-3.5 h-3.5 text-[#E6D4AF]" />
-            <span>Destaque do Mês na Clínica Vittacare</span>
+            <span>
+              {isWomanMode ? 'Destaque do Mês • Saúde da Mulher Vittacare' : 'Destaque do Mês na Clínica Vittacare'}
+            </span>
           </div>
 
           <h2 className="font-serif font-bold text-xl sm:text-2xl lg:text-3xl text-white leading-tight">
-            Campanha de Vacinação Contra Bronquiolite Materna (VSR)
+            {isWomanMode
+              ? 'Campanha Rosa Vittacare: Mês de Rastreio das Mamas & Mamografia Digital'
+              : 'Campanha de Vacinação Contra Bronquiolite Materna (VSR)'}
           </h2>
 
           <p className="text-xs sm:text-sm text-stone-200 leading-relaxed">
-            Gestantes a partir da 32ª semana: protejam seu bebê antes mesmo de nascer. A dose única induz a passagem de anticorpos maternos pelo cordão umbilical, conferindo imunidade nos meses mais críticos do recém-nascido.
+            {isWomanMode
+              ? 'Prioridade no agendamento para mulheres a partir dos 40 anos e avaliação ecográfica com ultrassom de alta frequência para mamas jovens e densas. O rastreio precoce aumenta para mais de 95% as chances de cura.'
+              : 'Gestantes a partir da 32ª semana: protejam seu bebê antes mesmo de nascer. A dose única induz a passagem de anticorpos maternos pelo cordão umbilical, conferindo imunidade nos meses mais críticos do recém-nascido.'}
           </p>
 
           <div className="pt-2 flex flex-wrap items-center gap-3">
             <button
-              onClick={() => handleRegisterEvent('news-1')}
+              onClick={() => handleRegisterEvent(isWomanMode ? 'news-w1' : 'news-1')}
               className={`px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center gap-2 ${
-                registeredEvents['news-1']
+                registeredEvents[isWomanMode ? 'news-w1' : 'news-1']
                   ? 'bg-emerald-600 text-white'
                   : 'bg-gradient-to-r from-[#E6D4AF] to-[#DEC68E] text-[#480D1B] hover:brightness-105 shadow-md'
               }`}
             >
-              {registeredEvents['news-1'] ? (
+              {registeredEvents[isWomanMode ? 'news-w1' : 'news-1'] ? (
                 <>
                   <Check className="w-4 h-4" />
-                  <span>Horário Solicitado com Sucesso!</span>
+                  <span>{isWomanMode ? 'Agendamento Solicitado!' : 'Horário Solicitado com Sucesso!'}</span>
                 </>
               ) : (
                 <>
-                  <span>Agendar na Sala de Vacinas</span>
+                  <span>{isWomanMode ? 'Agendar Mamografia / USG' : 'Agendar na Sala de Vacinas'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
 
             <span className="text-xs text-[#E6D4AF]">
-              • Disponível na unidade Torre Sul (com ou sem agendamento prévio)
+              {isWomanMode
+                ? '• Laudos com tecnologia digital e entrega rápida pelo aplicativo'
+                : '• Disponível na unidade Torre Sul (com ou sem agendamento prévio)'}
             </span>
           </div>
         </div>

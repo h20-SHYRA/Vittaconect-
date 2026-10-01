@@ -1,3 +1,5 @@
+export type UserMode = 'gestante' | 'saude_feminina';
+
 export type NavTab = 
   | 'home' 
   | 'prenatal_card' 
@@ -7,22 +9,37 @@ export type NavTab =
   | 'reminders' 
   | 'symptoms' 
   | 'education' 
-  | 'profile';
+  | 'profile'
+  // Abas de Saúde Feminina (Não Gestante)
+  | 'woman_home'
+  | 'cycle_tracker'
+  | 'preventive_screening'
+  | 'woman_education';
 
-export type AppointmentType = 'prenatal' | 'telehealth' | 'exam' | 'ultrasound';
+export type AppointmentType = 'prenatal' | 'telehealth' | 'exam' | 'ultrasound' | 'gynecology';
 
 export interface PatientProfile {
   id: string;
+  userMode: UserMode;
   name: string;
   preferredName: string;
   age: number;
   phone?: string;
-  babyNickname: string;
+  // Campos de gestante (quando userMode === 'gestante')
+  babyNickname?: string;
   babyGender?: 'boy' | 'girl' | 'surprise';
-  currentWeek: number;
-  dueDate: string;
-  bloodType: string;
-  isFirstPregnancy: boolean;
+  currentWeek?: number;
+  dueDate?: string;
+  bloodType?: string;
+  isFirstPregnancy?: boolean;
+  // Campos de saúde feminina (quando userMode === 'saude_feminina')
+  lastPeriodDate?: string;
+  cycleDurationDays?: number;
+  periodDurationDays?: number;
+  contraceptiveMethod?: string;
+  pregnancyGoal?: 'prevent' | 'try_conceive' | 'awareness';
+  lifeStage?: 'jovem' | 'reprodutiva' | 'perimenopausa' | 'menopausa';
+  
   emergencyContact: string;
   allergies: string;
   doctorName: string;
@@ -31,6 +48,47 @@ export interface PatientProfile {
   initialWeight?: number;
   currentWeight?: number;
   heightCm?: number;
+}
+
+export interface CycleDayLog {
+  date: string; // YYYY-MM-DD
+  flow?: 'none' | 'spotting' | 'light' | 'medium' | 'heavy';
+  symptoms: string[];
+  mood?: 'equilibrada' | 'sensivel' | 'irritada' | 'cansada' | 'radiante';
+  cervicalMucus?: 'seco' | 'pegajoso' | 'cremoso' | 'clara_de_ovo';
+  hadIntercourse?: boolean;
+  notes?: string;
+}
+
+export interface PreventiveExam {
+  id: string;
+  name: string;
+  category: 'colo_utero' | 'mamas' | 'laboratorial' | 'vacina' | 'imagem';
+  categoryLabel: string;
+  description: string;
+  recommendedFrequency: string; // ex: Anual, A cada 2 anos, Dose única
+  targetAgeRange: string; // ex: 25 a 64 anos
+  lastDate?: string;
+  nextDueDate: string;
+  status: 'em_dia' | 'proximo_vencer' | 'atrasado' | 'agendado';
+  lastResult?: string;
+  laboratoryOrClinic?: string;
+  importanceDescription: string;
+}
+
+export interface WomanEducationalArticle {
+  id: string;
+  track: 'saude_intima' | 'menopausa' | 'fertilidade' | 'nutricao_metabolismo';
+  trackLabel: string;
+  title: string;
+  type: 'article' | 'podcast' | 'video';
+  duration: string;
+  author: string;
+  authorRole: string;
+  summary: string;
+  content: string[];
+  keyTakeaways: string[];
+  recommendedAgeRange?: string;
 }
 
 export interface WeightRecord {
@@ -110,7 +168,7 @@ export interface ForumPost {
 
 export interface ClinicNewsItem {
   id: string;
-  category: 'vaccination' | 'course' | 'oncall' | 'technology';
+  category: 'vaccination' | 'course' | 'oncall' | 'technology' | 'campaign' | 'workshop';
   categoryLabel: string;
   title: string;
   summary: string;

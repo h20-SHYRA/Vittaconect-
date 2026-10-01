@@ -24,22 +24,39 @@ import {
   Info
 } from 'lucide-react';
 import { MedicalReminder, ReminderCategory } from '../types';
-import { INITIAL_REMINDERS } from '../data/mockData';
-
-const REMINDERS_STORAGE_KEY = 'vittaconect_medical_reminders_v1';
+import { INITIAL_REMINDERS, INITIAL_WOMAN_REMINDERS } from '../data/mockData';
+import { usePatient } from '../context/PatientContext';
 
 export const RemindersView: React.FC = () => {
+  const { patient } = usePatient();
+  const isWomanMode = patient?.userMode === 'saude_feminina';
+  const storageKey = isWomanMode ? 'vittaconect_reminders_woman_v1' : 'vittaconect_reminders_pregnant_v1';
+  const defaultList = isWomanMode ? INITIAL_WOMAN_REMINDERS : INITIAL_REMINDERS;
+
   const [reminders, setReminders] = useState<MedicalReminder[]>(() => {
     try {
-      const saved = localStorage.getItem(REMINDERS_STORAGE_KEY);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         return JSON.parse(saved);
       }
     } catch (e) {
       console.warn('Erro ao carregar lembretes médicos', e);
     }
-    return INITIAL_REMINDERS;
+    return defaultList;
   });
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        setReminders(JSON.parse(saved));
+      } else {
+        setReminders(defaultList);
+      }
+    } catch {
+      setReminders(defaultList);
+    }
+  }, [isWomanMode]);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -48,9 +65,9 @@ export const RemindersView: React.FC = () => {
   // Form State for new reminder
   const [formTitle, setFormTitle] = useState('');
   const [formCategory, setFormCategory] = useState<ReminderCategory>('pos_consulta');
-  const [formProfessionalName, setFormProfessionalName] = useState('Dr. Roberto Silva');
-  const [formProfessionalRole, setFormProfessionalRole] = useState('Médico Obstetra e Ginecologista');
-  const [formConsultationRef, setFormConsultationRef] = useState('Consulta Pré-Natal Recente');
+  const [formProfessionalName, setFormProfessionalName] = useState(isWomanMode ? 'Dra. Beatriz Lins' : 'Dr. Roberto Silva');
+  const [formProfessionalRole, setFormProfessionalRole] = useState(isWomanMode ? 'Médica Ginecologista' : 'Médico Obstetra e Ginecologista');
+  const [formConsultationRef, setFormConsultationRef] = useState(isWomanMode ? 'Consulta Ginecológica Preventiva' : 'Consulta Pré-Natal Recente');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
   const [formImportance, setFormImportance] = useState<'urgent' | 'important' | 'routine'>('important');
   const [formContent, setFormContent] = useState('');
@@ -60,11 +77,11 @@ export const RemindersView: React.FC = () => {
   // Save to localStorage whenever reminders change
   useEffect(() => {
     try {
-      localStorage.setItem(REMINDERS_STORAGE_KEY, JSON.stringify(reminders));
+      localStorage.setItem(storageKey, JSON.stringify(reminders));
     } catch (e) {
       console.warn('Erro ao salvar lembretes', e);
     }
-  }, [reminders]);
+  }, [reminders, storageKey]);
 
   // Toggle checklist item completion
   const handleToggleChecklist = (reminderId: string, itemId: string) => {
@@ -206,7 +223,9 @@ export const RemindersView: React.FC = () => {
               Recomendações da Sua Equipe Médica
             </h1>
             <p className="text-xs sm:text-sm text-stone-200 leading-relaxed">
-              Esqueceu o que o médico ou a enfermeira falaram na última consulta? Consulte aqui as instruções detalhadas, jejuns, remédios e cuidados passados especialmente para você e o bebê.
+              {isWomanMode
+                ? 'Consulte aqui os preparos de exames preventivos, rotina do autoexame das mamas, horários de anticoncepcional, suplementação e sinais de alarme ginecológico.'
+                : 'Esqueceu o que o médico ou a enfermeira falaram na última consulta? Consulte aqui as instruções detalhadas, jejuns, remédios e cuidados passados especialmente para você e o bebê.'}
             </p>
           </div>
 

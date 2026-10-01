@@ -10,6 +10,10 @@ import { ProfileView } from './components/ProfileView';
 import { PrenatalCardView } from './components/PrenatalCardView';
 import { CommunityForumView } from './components/CommunityForumView';
 import { ClinicNewsView } from './components/ClinicNewsView';
+import { WomanDashboardView } from './components/WomanDashboardView';
+import { CycleTrackerView } from './components/CycleTrackerView';
+import { PreventiveScreeningView } from './components/PreventiveScreeningView';
+import { WomanEducationView } from './components/WomanEducationView';
 import { TeleconsultationModal } from './components/TeleconsultationModal';
 import { SOSModal } from './components/SOSModal';
 import { InstallAppModal } from './components/InstallAppModal';
@@ -23,15 +27,32 @@ import { CLINIC_INFO } from './data/mockData';
 
 function AppContent() {
   const { patient, isLoggedIn } = usePatient();
+  const isWomanMode = patient?.userMode === 'saude_feminina';
 
-  const [currentTab, setCurrentTab] = useState<NavTab>('home');
+  const [currentTab, setCurrentTab] = useState<NavTab>(() => {
+    return isWomanMode ? 'woman_home' : 'home';
+  });
+
   const [isSOSOpen, setIsSOSOpen] = useState<boolean>(false);
   const [isInstallOpen, setIsInstallOpen] = useState<boolean>(false);
   const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
   const [isCustomizationOpen, setIsCustomizationOpen] = useState<boolean>(false);
   const [activeTelehealthId, setActiveTelehealthId] = useState<string | null>(null);
 
-  // If no mother is registered yet, show the friendly Onboarding / Login screen
+  // If userMode switches, ensure tab is synchronized
+  React.useEffect(() => {
+    if (isWomanMode) {
+      if (currentTab === 'home' || currentTab === 'prenatal_card' || currentTab === 'community' || currentTab === 'symptoms') {
+        setCurrentTab('woman_home');
+      }
+    } else {
+      if (currentTab === 'woman_home' || currentTab === 'cycle_tracker' || currentTab === 'preventive_screening' || currentTab === 'woman_education') {
+        setCurrentTab('home');
+      }
+    }
+  }, [isWomanMode]);
+
+  // If no mother or woman is registered yet, show the friendly Onboarding / Login screen
   if (!isLoggedIn || !patient) {
     return <PatientLoginView />;
   }
@@ -68,18 +89,52 @@ function AppContent() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-5 pb-24 md:pb-12 z-10">
-        {currentTab === 'home' && (
-          <DashboardView
-            onNavigate={setCurrentTab}
-            onStartTelehealth={handleStartTelehealth}
-            onOpenShare={() => setIsShareOpen(true)}
-          />
+        {/* ==================================================== */}
+        {/* TABS DO MODO SAÚDE FEMININA (NÃO GESTANTE)          */}
+        {/* ==================================================== */}
+        {isWomanMode && (
+          <>
+            {currentTab === 'woman_home' && (
+              <WomanDashboardView
+                onNavigate={setCurrentTab}
+                onOpenSOS={() => setIsSOSOpen(true)}
+              />
+            )}
+
+            {currentTab === 'cycle_tracker' && <CycleTrackerView />}
+
+            {currentTab === 'preventive_screening' && <PreventiveScreeningView />}
+
+            {currentTab === 'woman_education' && <WomanEducationView />}
+          </>
         )}
 
-        {currentTab === 'prenatal_card' && <PrenatalCardView />}
+        {/* ==================================================== */}
+        {/* TABS DO MODO GESTANTE (PRÉ-NATAL MATERNO)           */}
+        {/* ==================================================== */}
+        {!isWomanMode && (
+          <>
+            {currentTab === 'home' && (
+              <DashboardView
+                onNavigate={setCurrentTab}
+                onStartTelehealth={handleStartTelehealth}
+                onOpenShare={() => setIsShareOpen(true)}
+              />
+            )}
 
-        {currentTab === 'community' && <CommunityForumView />}
+            {currentTab === 'prenatal_card' && <PrenatalCardView />}
 
+            {currentTab === 'community' && <CommunityForumView />}
+
+            {currentTab === 'symptoms' && <SymptomsView />}
+
+            {currentTab === 'education' && <EducationView />}
+          </>
+        )}
+
+        {/* ==================================================== */}
+        {/* TABS COMPARTILHADAS (MURAL, AGENDA, LEMBRETES, PERFIL)*/}
+        {/* ==================================================== */}
         {currentTab === 'news' && <ClinicNewsView />}
 
         {currentTab === 'calendar' && (
@@ -87,10 +142,6 @@ function AppContent() {
         )}
 
         {currentTab === 'reminders' && <RemindersView />}
-
-        {currentTab === 'symptoms' && <SymptomsView />}
-
-        {currentTab === 'education' && <EducationView />}
 
         {currentTab === 'profile' && (
           <ProfileView
