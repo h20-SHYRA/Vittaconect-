@@ -185,13 +185,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6">
           <div className="p-4 rounded-2xl bg-white border border-[#E6D4AF]/60 shadow-xs">
             <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
-              {isWomanMode ? 'Médico Ginecologista' : 'Médico Obstetra'}
+              {isWomanMode ? 'Médica Ginecologista' : 'Médico Obstetra'}
             </span>
             <h4 className="font-serif font-bold text-base text-[#480D1B] mt-1">
-              {patient?.doctorName || (isWomanMode ? 'Dra. Beatriz Lins (Ginecologista)' : 'Dr. Roberto Silva (Obstetra)')}
+              {patient?.doctorName || (isWomanMode ? 'Dra. Bianca' : 'Dr. Marcelo & Dra. Letícia')}
             </h4>
             <span className="text-xs text-stone-500 block mt-0.5">
-              {patient?.doctorCrm || 'CRM-SP 142.890'}
+              {patient?.doctorCrm || 'Corpo Clínico Vittacare'}
             </span>
           </div>
 
@@ -200,10 +200,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               Enfermeira de Referência
             </span>
             <h4 className="font-serif font-bold text-base text-[#480D1B] mt-1">
-              Enf. Carla Soares
+              Enfª. Stephanie
             </h4>
             <span className="text-xs text-stone-500 block mt-0.5">
-              COREN-SP 214.502 (Saúde da Mulher)
+              COREN-SP 000.004 (Saúde da Mulher & Puerpério)
             </span>
           </div>
 

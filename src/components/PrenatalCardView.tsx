@@ -294,10 +294,10 @@ export const PrenatalCardView: React.FC = () => {
             <div className="bg-white/10 rounded-xl p-2.5 backdrop-blur-xs">
               <span className="text-[10px] text-stone-300 block">Médico Obstetra</span>
               <span className="font-bold text-sm text-white truncate block">
-                {patient?.doctorName || 'Dr. Roberto Silva'}
+                {patient?.doctorName || 'Dr. Marcelo'}
               </span>
               <span className="text-[10px] text-stone-300 block truncate">
-                {patient?.doctorCrm || 'CRM-SP 142.890'}
+                {patient?.doctorCrm || 'CRM-SP 000.002'}
               </span>
             </div>
 

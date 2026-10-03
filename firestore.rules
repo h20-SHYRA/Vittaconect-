@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isProfessional() {
+      return isAuthenticated() && getUserData().role == 'profissional';
+    }
+
+    // Coleção de Usuários
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isOwner(userId);
+    }
+    
+    // Métricas verídicas de acessos diários e mensais
+    match /access_metrics/{metricId} {
+      allow read, write: if true;
+    }
+
+    // Registros auditáveis de acessos verídicos
+    match /access_logs/{logId} {
+      allow read, write: if true;
+    }
+    
+    // Agenda e teleconsultas de enfermagem
+    match /professional_agenda/{agendaId} {
+      allow read, write: if true;
+    }
+    
+    // Chat em tempo real interativo entre Enfermeiro(a) e Paciente
+    match /consultation_chats/{chatId} {
+      allow read, write: if true;
+      
+      match /messages/{messageId} {
+        allow read, write: if true;
+      }
+    }
+
+    match /team_chats/{chatId} {
+      allow read, write: if true;
+      
+      match /messages/{messageId} {
+        allow read, write: if true;
+      }
+    }
+  }
+}

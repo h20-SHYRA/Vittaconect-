@@ -31,9 +31,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartTelehealth })
   // Month days setup for October 2026 (Starts on Thursday Oct 1st)
   // We mark days that have events: 12 (Dr. Silva), 15 (Enf. Carla Telehealth), 22 (Ultrassom)
   const eventDays: Record<number, { type: 'prenatal' | 'telehealth' | 'ultrasound' | 'exam'; title: string }> = {
-    12: { type: 'prenatal', title: 'Consulta Pré-natal - Dr. Silva' },
-    15: { type: 'telehealth', title: 'Teleorientação - Enf. Carla' },
-    22: { type: 'ultrasound', title: 'Ultrassom Morfológico 2º Trimestre' },
+    12: { type: 'prenatal', title: 'Consulta Pré-natal - Dr. Marcelo' },
+    15: { type: 'telehealth', title: 'Teleorientação - Enfª. Stephanie' },
+    22: { type: 'ultrasound', title: 'Ultrassom Morfológico 2º Trimestre - Dra. Letícia' },
     28: { type: 'telehealth', title: 'Teleconsulta Nutricional' },
   };
 
@@ -231,7 +231,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartTelehealth })
                 </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-serif font-bold text-[#480D1B]">
-                Teleorientação Materna - Enf. Carla Soares
+                Teleorientação Materna - Enfª. Stephanie
               </h2>
               <p className="text-xs sm:text-sm text-stone-600 max-w-xl">
                 Sua sala de videochamada criptografada está aberta. Tire dúvidas sobre sinais de trabalho de parto, contrações de treinamento, aleitamento e orientações de rotina.
@@ -408,11 +408,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onStartTelehealth })
                   Tipo de Atendimento
                 </label>
                 <select className="w-full p-3 rounded-xl border border-stone-200 bg-[#FAF6ED]/40 focus:ring-2 focus:ring-[#B89243] focus:outline-none">
-                  <option>Consulta Pré-natal Presencial (Dr. Roberto Silva)</option>
-                  <option>Teleorientação de Enfermagem Obstétrica (Enf. Carla)</option>
-                  <option>Ultrassonografia Morfológica / 4D (Dra. Beatriz)</option>
-                  <option>Teleconsulta com Nutricionista Materna (Dra. Juliana)</option>
-                  <option>Acompanhamento Psicológico Perinatal</option>
+                  <option>Consulta Pré-natal Presencial (Dr. Marcelo)</option>
+                  <option>Teleorientação de Enfermagem Obstétrica (Enfª. Stephanie)</option>
+                  <option>Ultrassonografia Morfológica / 4D (Dra. Letícia)</option>
+                  <option>Consulta Ginecológica Preventiva (Dra. Bianca)</option>
+                  <option>Teleconsulta Nutricional Materna</option>
                 </select>
               </div>
 

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { PatientProfile, UserMode } from '../types';
 import { DEFAULT_WOMAN_PATIENT } from '../data/mockData';
+import { useAuth } from './AuthContext';
 
 interface PatientContextType {
   patient: PatientProfile | null;
@@ -45,8 +46,8 @@ export const DEFAULT_PREGNANT_PATIENT: PatientProfile = {
   isFirstPregnancy: true,
   emergencyContact: 'Lucas Santos (Esposo) - (11) 99123-4567',
   allergies: 'Dipirona (leve prurido cutâneo)',
-  doctorName: 'Dr. Roberto Silva (Obstetra)',
-  doctorCrm: 'CRM-SP 142.890',
+  doctorName: 'Enf. Marcelo & Enfª. Letícia (Enfermagem Obstétrica)',
+  doctorCrm: 'COREN-SP 000.002 (Fictício)',
   registeredAt: '2026-06-15T10:00:00.000Z',
   initialWeight: 62.0,
   currentWeight: 65.0,
@@ -54,6 +55,8 @@ export const DEFAULT_PREGNANT_PATIENT: PatientProfile = {
 };
 
 export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { patientProfile, logout: authLogout } = useAuth();
+
   const [patient, setPatient] = useState<PatientProfile | null>(() => {
     try {
       const saved = localStorage.getItem(PATIENT_STORAGE_KEY);
@@ -66,6 +69,12 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Starts as null so the Welcome / Registration screen appears when opening the app!
     return null;
   });
+
+  useEffect(() => {
+    if (patientProfile) {
+      setPatient(patientProfile);
+    }
+  }, [patientProfile]);
 
   useEffect(() => {
     try {
@@ -99,8 +108,8 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
             isFirstPregnancy: data.isFirstPregnancy ?? true,
             emergencyContact: data.emergencyContact || 'Familiar de Apoio',
             allergies: data.allergies || 'Nenhuma alergia conhecida',
-            doctorName: data.doctorName || 'Dr. Roberto Silva (Obstetra)',
-            doctorCrm: data.doctorCrm || 'CRM-SP 142.890',
+            doctorName: data.doctorName || 'Enf. Marcelo & Enfª. Letícia (Enfermagem Obstétrica)',
+            doctorCrm: data.doctorCrm || 'COREN-SP 000.002 (Fictício)',
             registeredAt: new Date().toISOString(),
           }
         : {
@@ -118,8 +127,8 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
             lifeStage: data.lifeStage || 'reprodutiva',
             emergencyContact: data.emergencyContact || 'Contato de Confiança',
             allergies: data.allergies || 'Nenhuma alergia conhecida',
-            doctorName: data.doctorName || 'Dra. Beatriz Lins (Ginecologista)',
-            doctorCrm: data.doctorCrm || 'CRM-SP 156.412',
+            doctorName: data.doctorName || 'Enfª. Bianca (Enfermagem em Saúde da Mulher)',
+            doctorCrm: data.doctorCrm || 'COREN-SP 000.003 (Fictício)',
             registeredAt: new Date().toISOString(),
           }
       );
@@ -171,6 +180,7 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.warn('Erro ao limpar storage no logout', e);
     }
     setPatient(null);
+    authLogout().catch((err) => console.warn('Auth logout error:', err));
   };
 
   const loadDemoPatient = () => {

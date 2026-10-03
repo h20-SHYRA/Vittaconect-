@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { VittacareLogo } from './VittacareLogo';
 import { usePatient } from '../context/PatientContext';
+import { useRealtimeChat } from '../services/realtimeChat';
 
 interface TeleconsultationModalProps {
   onClose: () => void;
@@ -24,53 +25,33 @@ interface TeleconsultationModalProps {
 
 export const TeleconsultationModal: React.FC<TeleconsultationModalProps> = ({
   onClose,
-  professionalName = 'Enf. Carla Soares',
+  professionalName = 'Enfª. Stephanie',
   role = 'Enfermeira Especialista em Saúde Materna',
 }) => {
   const { patient } = usePatient();
   const motherName = patient?.preferredName || patient?.name?.split(' ')[0] || 'Mãezinha';
   const babyName = patient?.babyNickname || 'Bebê';
   const weekNumber = patient?.currentWeek || 16;
+  const isGestante = patient?.userMode !== 'saude_feminina';
 
   const [micActive, setMicActive] = useState(true);
   const [cameraActive, setCameraActive] = useState(true);
   const [activeTab, setActiveTab] = useState<'chat' | 'notes'>('chat');
-  const [messages, setMessages] = useState<Array<{ sender: string; text: string; time: string; isDoctor: boolean }>>([
-    {
-      sender: 'Enf. Carla Soares',
-      text: `Olá, ${motherName}! Seja bem-vinda à nossa sala virtual Vittaconect. Como você e o bebê ${babyName} estão se sentindo hoje na ${weekNumber}ª semana?`,
-      time: '16:01',
-      isDoctor: true,
-    },
-  ]);
   const [newMessage, setNewMessage] = useState('');
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const { messages: realtimeMsgs, sendMessage } = useRealtimeChat();
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
-    const userMsg = {
-      sender: motherName,
-      text: newMessage.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isDoctor: false,
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
+    await sendMessage(
+      newMessage.trim(),
+      'paciente',
+      `${motherName} (${isGestante ? `${weekNumber}ª Sem` : 'Saúde Mulher'})`,
+      patient?.id || 'pat-demo'
+    );
     setNewMessage('');
-
-    // Simulated warm, empathetic clinical response
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: professionalName,
-          text: 'Compreendo perfeitamente, Mariana. É muito comum nessa fase sentir essa sensação e leve peso lombar. Vamos revisar a sua postura e o fortalecimento pélvico!',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isDoctor: true,
-        },
-      ]);
-    }, 1200);
   };
 
   return (
@@ -185,26 +166,29 @@ export const TeleconsultationModal: React.FC<TeleconsultationModalProps> = ({
             {activeTab === 'chat' ? (
               <div className="flex-1 flex flex-col p-4 overflow-hidden">
                 <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
-                  {messages.map((msg, i) => (
-                    <div
-                      key={i}
-                      className={`flex flex-col ${msg.isDoctor ? 'items-start' : 'items-end'}`}
-                    >
-                      <div className="flex items-center gap-1.5 text-[10px] text-stone-400 mb-0.5">
-                        <span className="font-semibold text-[#E6D4AF]">{msg.sender}</span>
-                        <span>{msg.time}</span>
-                      </div>
+                  {realtimeMsgs.map((msg) => {
+                    const isNurse = msg.senderRole === 'profissional';
+                    return (
                       <div
-                        className={`p-3 rounded-2xl max-w-[85%] leading-relaxed ${
-                          msg.isDoctor
-                            ? 'bg-[#352229] text-stone-200 border border-white/10'
-                            : 'bg-[#B89243] text-stone-950 font-medium'
-                        }`}
+                        key={msg.id}
+                        className={`flex flex-col ${isNurse ? 'items-start' : 'items-end'}`}
                       >
-                        {msg.text}
+                        <div className="flex items-center gap-1.5 text-[10px] text-stone-400 mb-0.5">
+                          <span className="font-semibold text-[#E6D4AF]">{msg.senderName}</span>
+                          <span>{msg.timeString}</span>
+                        </div>
+                        <div
+                          className={`p-3 rounded-2xl max-w-[85%] leading-relaxed ${
+                            isNurse
+                              ? 'bg-[#352229] text-stone-200 border border-white/10'
+                              : 'bg-[#B89243] text-stone-950 font-medium'
+                          }`}
+                        >
+                          {msg.text}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <form onSubmit={handleSendMessage} className="mt-3 flex gap-2">
@@ -248,8 +232,21 @@ export const TeleconsultationModal: React.FC<TeleconsultationModalProps> = ({
             <strong className="text-white">{patient?.name || motherName}</strong>
           </div>
 
-          {/* Central AV Buttons */}
+          {/* Central AV Buttons & Google Meet link */}
           <div className="flex items-center gap-3 mx-auto sm:mx-0">
+            {/* Google Meet official link */}
+            <a
+              href="https://meet.google.com/vit-care-obst"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 rounded-full bg-white hover:bg-slate-100 text-[#0B192C] font-bold text-xs flex items-center gap-1.5 shadow-md border-2 border-[#0B192C] transition-all cursor-pointer mr-1"
+              title="Abrir no Google Meet Oficial"
+            >
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <Video className="w-4 h-4 text-[#1E3E62]" />
+              <span>Google Meet</span>
+            </a>
+
             {/* Toggle Mic */}
             <button
               onClick={() => setMicActive(!micActive)}

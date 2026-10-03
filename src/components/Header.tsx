@@ -1,5 +1,5 @@
 import React from 'react';
-import { PhoneCall, Bell, ShieldAlert, HeartHandshake, Smartphone, Users, Sliders, Type, LogOut } from 'lucide-react';
+import { PhoneCall, Bell, ShieldAlert, HeartHandshake, Smartphone, Users, Sliders, Type, LogOut, Video } from 'lucide-react';
 import { VittacareLogo } from './VittacareLogo';
 import { CLINIC_INFO } from '../data/mockData';
 import { usePatient } from '../context/PatientContext';
@@ -187,6 +187,19 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Zone: Sair (Logout), Accessibility, Share, Install App, SOS 24h & Patient Avatar */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Google Meet Videochamada com a Enfermagem */}
+          <a
+            href="https://meet.google.com/vit-care-obst"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-[#0B192C] bg-white border-2 border-[#0B192C] hover:bg-[#EBF3F8] active:scale-[0.98] transition-all cursor-pointer shadow-2xs"
+            title="Abrir videochamada Google Meet com a Enfermagem"
+          >
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <Video className="w-3.5 h-3.5 text-[#1E3E62]" />
+            <span className="hidden sm:inline">Google Meet</span>
+          </a>
+
           {/* Logout / Sair Button (Directly returns to Registration Screen) */}
           <button
             onClick={() => {

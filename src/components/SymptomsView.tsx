@@ -79,7 +79,7 @@ export const SymptomsView: React.FC = () => {
             Diário de Sintomas & Bem-Estar
           </h1>
           <p className="text-sm text-stone-600 mt-1 max-w-xl">
-            Monitore suas sensações diárias para compartilhar com Dr. Roberto Silva e a equipe de enfermagem obstétrica.
+            Monitore suas sensações diárias para compartilhar com Dr. Marcelo, Dra. Letícia e a equipe de enfermagem obstétrica com Enfª. Stephanie.
           </p>
         </div>
 

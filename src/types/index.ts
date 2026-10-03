@@ -259,3 +259,52 @@ export interface EducationalArticle {
   content: string[];
   keyTakeaways: string[];
 }
+
+export type UserRole = 'paciente' | 'profissional';
+
+export type ProfessionalTab = 'constellation' | 'metrics' | 'agenda' | 'chat' | 'records' | 'profile';
+
+export interface ProfessionalProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  role: 'profissional';
+  specialty: string;
+  councilNumber?: string;
+  phone?: string;
+  createdAt: string;
+  lastLoginAt: string;
+  onDuty?: boolean;
+}
+
+export interface AccessMetricsData {
+  dailyAccessCount: number;
+  monthlyAccessCount: number;
+  dailyGoal: number;
+  monthlyGoal: number;
+  updatedAt: string;
+}
+
+export interface ProfessionalAppointment {
+  id: string;
+  patientName: string;
+  patientEmail?: string;
+  appointmentTime: string;
+  appointmentDate: string;
+  type: 'teleconsulta' | 'presencial' | 'ultrassom' | 'retorno';
+  specialty: string;
+  status: 'agendado' | 'em_andamento' | 'concluido' | 'cancelado';
+  patientMode?: 'gestante' | 'saude_feminina';
+  notes?: string;
+}
+
+export interface RealtimeChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'paciente' | 'profissional';
+  text: string;
+  timestamp: string;
+  avatar?: string;
+}

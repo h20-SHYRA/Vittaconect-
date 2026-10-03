@@ -20,12 +20,18 @@ import { InstallAppModal } from './components/InstallAppModal';
 import { ShareAccessModal } from './components/ShareAccessModal';
 import { CustomizationModal } from './components/CustomizationModal';
 import { PatientLoginView } from './components/PatientLoginView';
+import { VittaprofessioDashboard } from './components/VittaprofessioDashboard';
+import { PatientNurseChatDrawer } from './components/PatientNurseChatDrawer';
+import { NursingCrest } from './components/NursingCrest';
+import { MessageSquare } from 'lucide-react';
 import { CustomizationProvider } from './context/CustomizationContext';
 import { PatientProvider, usePatient } from './context/PatientContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { NavTab } from './types';
 import { CLINIC_INFO } from './data/mockData';
 
 function AppContent() {
+  const { userRole, loading: authLoading } = useAuth();
   const { patient, isLoggedIn } = usePatient();
   const isWomanMode = patient?.userMode === 'saude_feminina';
 
@@ -38,6 +44,7 @@ function AppContent() {
   const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
   const [isCustomizationOpen, setIsCustomizationOpen] = useState<boolean>(false);
   const [activeTelehealthId, setActiveTelehealthId] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
 
   // If userMode switches, ensure tab is synchronized
   React.useEffect(() => {
@@ -52,8 +59,29 @@ function AppContent() {
     }
   }, [isWomanMode]);
 
-  // If no mother or woman is registered yet, show the friendly Onboarding / Login screen
-  if (!isLoggedIn || !patient) {
+  // Loading state with gentle spinner
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-3xl bg-[#5D1425] flex items-center justify-center shadow-lg animate-pulse mb-4">
+          <span className="text-2xl text-white font-serif font-bold">V</span>
+        </div>
+        <h3 className="font-serif font-bold text-xl text-[#480D1B]">Vittaconect & Vittaprofessio</h3>
+        <p className="text-xs text-stone-500 mt-1">Carregando autenticação segura...</p>
+      </div>
+    );
+  }
+
+  // REDIRECT 1: If role is 'profissional', strictly show the exclusive Vittaprofessio panel
+  if (userRole === 'profissional') {
+    return <VittaprofessioDashboard />;
+  }
+
+  // REDIRECT 2: If role is 'paciente' or logged in with a patient profile, show the Vittaconect patient app
+  if (userRole === 'paciente' || (isLoggedIn && patient)) {
+    // Falls through to the patient application JSX below
+  } else {
+    // If not logged in or profile not yet chosen, show the registration and login screen
     return <PatientLoginView />;
   }
 
@@ -172,7 +200,7 @@ function AppContent() {
       {activeTelehealthId && (
         <TeleconsultationModal
           onClose={handleCloseTelehealth}
-          professionalName="Enf. Carla Soares"
+          professionalName="Enfª. Stephanie"
           role="Enfermeira Especialista em Saúde Materna"
         />
       )}
@@ -186,6 +214,28 @@ function AppContent() {
       {/* Share Access & Support Network Modal */}
       {isShareOpen && <ShareAccessModal onClose={() => setIsShareOpen(false)} />}
 
+      {/* Floating Action Button: Chat ao Vivo com os Enfermeiros (Pearl Light Blue with Dark Metallic Blue Border) */}
+      <button
+        onClick={() => setIsChatOpen(true)}
+        className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 bg-gradient-to-r from-[#FAFCFE] via-[#F0F6FA] to-[#E2EEF5] text-[#0B192C] p-3 sm:px-4 sm:py-3 rounded-full shadow-2xl flex items-center gap-2 border-2 border-[#0B192C] hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+        title="Falar em tempo real com a Equipe de Enfermagem (Letícia, Marcelo, Bianca, Stephanie)"
+      >
+        <div className="relative">
+          <MessageSquare className="w-5 h-5 text-[#1E3E62]" />
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-[#0B192C] animate-pulse" />
+        </div>
+        <span className="hidden sm:inline text-xs font-bold tracking-wide text-[#0B192C]">
+          Plantão Enfermagem
+        </span>
+      </button>
+
+      {/* Real-time Patient-Nurse Chat Drawer */}
+      <PatientNurseChatDrawer
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        onOpenTelehealth={() => handleStartTelehealth('apt-2')}
+      />
+
       {/* Personalization & Font Size Customization Modal */}
       {isCustomizationOpen && <CustomizationModal onClose={() => setIsCustomizationOpen(false)} />}
     </div>
@@ -194,10 +244,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <PatientProvider>
-      <CustomizationProvider>
-        <AppContent />
-      </CustomizationProvider>
-    </PatientProvider>
+    <AuthProvider>
+      <PatientProvider>
+        <CustomizationProvider>
+          <AppContent />
+        </CustomizationProvider>
+      </PatientProvider>
+    </AuthProvider>
   );
 }

@@ -1,0 +1,99 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Cadastro e perfil de usuário do ecossistema Vittaconect e Vittaprofessio",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "ID exclusivo de autenticação do Firebase" },
+        "email": { "type": "string", "description": "E-mail autenticado com Google Sign-In" },
+        "displayName": { "type": "string", "description": "Nome completo ou de exibição" },
+        "photoURL": { "type": "string", "description": "URL da foto de perfil do Google" },
+        "role": {
+          "type": "string",
+          "enum": ["paciente", "profissional"],
+          "description": "Perfil de acesso: paciente ou profissional"
+        },
+        "patientMode": {
+          "type": "string",
+          "enum": ["gestante", "saude_feminina"],
+          "description": "Modo do paciente caso role seja paciente"
+        },
+        "specialty": { "type": "string", "description": "Especialidade médica ou de enfermagem" },
+        "councilNumber": { "type": "string", "description": "Registro profissional CRM/COREN" },
+        "phone": { "type": "string", "description": "Telefone de contato ou WhatsApp" },
+        "createdAt": { "type": "string", "description": "Data de criação em ISO" },
+        "lastLoginAt": { "type": "string", "description": "Último login registrado" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "AccessMetric": {
+      "title": "AccessMetric",
+      "description": "Métricas diárias e mensais de acessos ao aplicativo",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identificador da métrica (data ou aggregate)" },
+        "date": { "type": "string", "description": "Data no formato YYYY-MM-DD" },
+        "dailyAccessCount": { "type": "number", "description": "Total de acessos no dia" },
+        "monthlyAccessCount": { "type": "number", "description": "Total de acessos acumulados no mês" },
+        "dailyGoal": { "type": "number", "description": "Meta diária estimada" },
+        "monthlyGoal": { "type": "number", "description": "Meta mensal estimada" },
+        "updatedAt": { "type": "string", "description": "Data da última atualização" }
+      },
+      "required": ["id", "dailyAccessCount", "monthlyAccessCount"]
+    },
+    "ProfessionalAgenda": {
+      "title": "ProfessionalAgenda",
+      "description": "Compromisso ou consulta na agenda do profissional",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID do agendamento" },
+        "professionalId": { "type": "string", "description": "UID do profissional responsável" },
+        "patientName": { "type": "string", "description": "Nome da paciente" },
+        "patientEmail": { "type": "string", "description": "E-mail da paciente" },
+        "appointmentDate": { "type": "string", "description": "Data da consulta" },
+        "appointmentTime": { "type": "string", "description": "Horário da consulta" },
+        "type": { "type": "string", "description": "Tipo de consulta: teleconsulta ou presencial" },
+        "status": {
+          "type": "string",
+          "enum": ["agendado", "em_andamento", "concluido", "cancelado"],
+          "description": "Status do atendimento"
+        },
+        "notes": { "type": "string", "description": "Observações do prontuário" }
+      },
+      "required": ["id", "professionalId", "patientName", "appointmentDate", "appointmentTime", "status"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Mensagem no chat em tempo real entre profissional e equipe/paciente",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID da mensagem" },
+        "senderId": { "type": "string", "description": "UID do remetente" },
+        "senderName": { "type": "string", "description": "Nome de quem enviou" },
+        "senderRole": { "type": "string", "description": "paciente ou profissional" },
+        "text": { "type": "string", "description": "Conteúdo da mensagem" },
+        "timestamp": { "type": "string", "description": "Horário do envio" }
+      },
+      "required": ["id", "senderId", "senderName", "text", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Coleção de perfis de usuários com restrições por role (paciente vs profissional)"
+    },
+    "/access_metrics/{metricId}": {
+      "schema": "AccessMetric",
+      "description": "Coleção de métricas de contagem de acessos diários e mensais com indicador circular"
+    },
+    "/professional_agenda/{agendaId}": {
+      "schema": "ProfessionalAgenda",
+      "description": "Agenda clínica e teleconsultas exclusivas de profissionais autorizados"
+    },
+    "/team_chats/{chatId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Mensagens de suporte e teleorientação em tempo real"
+    }
+  }
+}

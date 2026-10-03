@@ -65,7 +65,7 @@ export const RemindersView: React.FC = () => {
   // Form State for new reminder
   const [formTitle, setFormTitle] = useState('');
   const [formCategory, setFormCategory] = useState<ReminderCategory>('pos_consulta');
-  const [formProfessionalName, setFormProfessionalName] = useState(isWomanMode ? 'Dra. Beatriz Lins' : 'Dr. Roberto Silva');
+  const [formProfessionalName, setFormProfessionalName] = useState(isWomanMode ? 'Dra. Bianca' : 'Dr. Marcelo');
   const [formProfessionalRole, setFormProfessionalRole] = useState(isWomanMode ? 'Médica Ginecologista' : 'Médico Obstetra e Ginecologista');
   const [formConsultationRef, setFormConsultationRef] = useState(isWomanMode ? 'Consulta Ginecológica Preventiva' : 'Consulta Pré-Natal Recente');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
@@ -575,7 +575,7 @@ export const RemindersView: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Dr. Roberto Silva"
+                    placeholder="Ex: Dra. Letícia, Dr. Marcelo, Dra. Bianca ou Enfª. Stephanie"
                     value={formProfessionalName}
                     onChange={(e) => setFormProfessionalName(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-xs focus:outline-none focus:border-[#5D1425]"
