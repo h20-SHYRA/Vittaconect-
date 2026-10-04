@@ -24,10 +24,17 @@ import {
   Mail,
   Flower2,
   Activity,
-  Scale
+  Scale,
+  Accessibility,
+  Volume2,
+  Eye,
+  Ear,
+  HandHeart,
+  Type
 } from 'lucide-react';
 import { useAuth, RESTRICTED_PROFESSIONAL_CODE } from '../context/AuthContext';
 import { usePatient, calculateDueDateFromWeeks } from '../context/PatientContext';
+import { useCustomization } from '../context/CustomizationContext';
 import { VittacareLogo } from './VittacareLogo';
 import { NursingCrest } from './NursingCrest';
 import { UserRole, UserMode } from '../types';
@@ -40,6 +47,7 @@ export const PatientLoginView: React.FC = () => {
     loading: authLoading 
   } = useAuth();
   const { registerOrUpdatePatient } = usePatient();
+  const { settings, updateSetting, increaseFontSize, decreaseFontSize } = useCustomization();
 
   // Tab: 'cadastro' vs 'login_existente'
   const [accessMode, setAccessMode] = useState<'cadastro' | 'login_existente'>('cadastro');
@@ -87,11 +95,60 @@ export const PatientLoginView: React.FC = () => {
   const [pregnancyGoal, setPregnancyGoal] = useState<'prevent' | 'try_conceive' | 'awareness'>('awareness');
   const [lifeStage, setLifeStage] = useState<'jovem' | 'reprodutiva' | 'perimenopausa' | 'menopausa'>('reprodutiva');
 
+  // Accessibility & Assisted Access (PCD / Acesso com Ajuda) States
+  const [hasDisability, setHasDisability] = useState<boolean>(false);
+  const [disabilityTypes, setDisabilityTypes] = useState<string[]>([]);
+  const [needsAssistedAccess, setNeedsAssistedAccess] = useState<boolean>(false);
+  const [helperName, setHelperName] = useState<string>('');
+  const [helperRelationship, setHelperRelationship] = useState<string>('Familiar / Acompanhante');
+  const [needsLibrasInterpreter, setNeedsLibrasInterpreter] = useState<boolean>(false);
+  const [accessibilityNotes, setAccessibilityNotes] = useState<string>('');
+  const [isSpeakingGuide, setIsSpeakingGuide] = useState<boolean>(false);
+
   // UI states
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const estimatedDueDate = calculateDueDateFromWeeks(currentWeek);
+
+  const toggleDisabilityType = (typeId: string) => {
+    setHasDisability(true);
+    setDisabilityTypes((prev) => {
+      const exists = prev.includes(typeId);
+      const next = exists ? prev.filter((item) => item !== typeId) : [...prev, typeId];
+      // Automatically adapt interface for visual or motor disability
+      if (next.includes('Visual / Baixa Visão')) {
+        updateSetting('fontSize', 'lg');
+        updateSetting('boldText', true);
+      }
+      if (next.includes('Auditiva / Surdez')) {
+        setNeedsLibrasInterpreter(true);
+      }
+      if (next.includes('Motora / Mobilidade Reduzida') || next.includes('Cognitiva / Intelectual')) {
+        updateSetting('lineHeight', 'relaxed');
+        setNeedsAssistedAccess(true);
+      }
+      return next;
+    });
+  };
+
+  const speakAccessibilityGuide = (customText?: string) => {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    if (isSpeakingGuide && !customText) {
+      setIsSpeakingGuide(false);
+      return;
+    }
+    const textToRead =
+      customText ||
+      'Bem-vinda à Clínica Vittacare. Você está na tela de cadastro e acesso assistido. Se você possui alguma deficiência ou está acessando com a ajuda de um familiar ou acompanhante, ative a opção de Acessibilidade logo abaixo para ampliar as letras, ativar o alto contraste, solicitar intérprete de Libras e cadastrar seu acompanhante de apoio.';
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    utterance.lang = 'pt-BR';
+    utterance.rate = 0.95;
+    utterance.onend = () => setIsSpeakingGuide(false);
+    setIsSpeakingGuide(true);
+    window.speechSynthesis.speak(utterance);
+  };
 
   // 1. Submit for Existing Registered User (Requires prior registration)
   const handleExistingUserLogin = async (e: React.FormEvent) => {
@@ -231,10 +288,18 @@ export const PatientLoginView: React.FC = () => {
         currentWeight: Number(currentWeight) || (Number(initialWeight) || 58.5),
         // Common Clinical Data
         heightCm: Number(heightCm) || 165,
-        emergencyContact: emergencyContact.trim() || 'Contato da Família',
+        emergencyContact: emergencyContact.trim() || helperName.trim() || 'Contato da Família',
         allergies: allergies.trim() || 'Nenhuma alergia conhecida',
         doctorName: selectedPatientMode === 'gestante' ? 'Enf. Marcelo & Enfª. Letícia (Enfermagem Obstétrica)' : 'Enfª. Bianca (Enfermagem em Saúde da Mulher)',
         doctorCrm: 'COREN-SP 000.002 (Fictício)',
+        // Accessibility & Assisted Access (PCD) Data
+        hasDisability: Boolean(hasDisability || disabilityTypes.length > 0 || needsAssistedAccess),
+        disabilityTypes: disabilityTypes.length > 0 ? disabilityTypes : [],
+        needsAssistedAccess: Boolean(needsAssistedAccess),
+        helperName: helperName.trim() || '',
+        helperRelationship: helperRelationship || 'Familiar / Acompanhante',
+        needsLibrasInterpreter: Boolean(needsLibrasInterpreter),
+        accessibilityNotes: accessibilityNotes.trim() || '',
       } : undefined,
     });
 
@@ -259,7 +324,7 @@ export const PatientLoginView: React.FC = () => {
           initialWeight: Number(initialWeight) || 62.0,
           currentWeight: Number(currentWeight) || 58.5,
           heightCm: Number(heightCm) || 165,
-          emergencyContact: emergencyContact.trim() || 'Contato da Família',
+          emergencyContact: emergencyContact.trim() || helperName.trim() || 'Contato da Família',
           allergies: allergies.trim() || 'Nenhuma alergia conhecida',
           doctorName: selectedPatientMode === 'gestante' ? 'Enf. Marcelo & Enfª. Letícia (Enfermagem Obstétrica)' : 'Enfª. Bianca (Enfermagem em Saúde da Mulher)',
           doctorCrm: 'COREN-SP 000.002 (Fictício)',
@@ -269,6 +334,13 @@ export const PatientLoginView: React.FC = () => {
           contraceptiveMethod: contraceptiveMethod || '',
           pregnancyGoal: pregnancyGoal || 'awareness',
           lifeStage,
+          hasDisability: Boolean(hasDisability || disabilityTypes.length > 0 || needsAssistedAccess),
+          disabilityTypes: disabilityTypes.length > 0 ? disabilityTypes : [],
+          needsAssistedAccess: Boolean(needsAssistedAccess),
+          helperName: helperName.trim() || '',
+          helperRelationship: helperRelationship || 'Familiar / Acompanhante',
+          needsLibrasInterpreter: Boolean(needsLibrasInterpreter),
+          accessibilityNotes: accessibilityNotes.trim() || '',
         });
       }
     }
@@ -301,6 +373,94 @@ export const PatientLoginView: React.FC = () => {
           <div className="mt-3.5 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-[#E6D4AF]/40 text-xs font-semibold text-[#E6D4AF] shadow-xs">
             <Sparkles className="w-3.5 h-3.5 text-[#E6D4AF]" />
             <span>Acesso Exclusivo com Cadastro • Pacientes & Enfermagem</span>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* BARRA DE ACESSIBILIDADE E ACESSO ASSISTIDO COM AJUDA (PCD)                */}
+        {/* ========================================================================= */}
+        <div className="bg-[#FAF6ED] border-b border-[#E6D4AF] px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-[#5D1425] text-[#E6D4AF] flex items-center justify-center shrink-0">
+              <Accessibility className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-[#480D1B] block leading-tight">
+                Central de Acessibilidade & Acesso com Ajuda (PCD)
+              </span>
+              <span className="text-[11px] text-stone-600 block">
+                Recursos assistivos para pessoas com deficiência ou acompanhantes
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {/* Voice Guide Reader */}
+            <button
+              type="button"
+              onClick={() => speakAccessibilityGuide()}
+              className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all flex items-center gap-1 cursor-pointer ${
+                isSpeakingGuide
+                  ? 'bg-[#5D1425] text-white border-[#5D1425]'
+                  : 'bg-white text-[#480D1B] border-[#E6D4AF] hover:bg-[#FAF0F2]'
+              }`}
+              title="Ouvir instruções faladas da tela de cadastro"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>{isSpeakingGuide ? 'Ouvindo Guia...' : 'Ouvir Ajuda'}</span>
+            </button>
+
+            {/* Font Size Controls */}
+            <button
+              type="button"
+              onClick={decreaseFontSize}
+              className="px-2 py-1.5 rounded-xl bg-white border border-[#E6D4AF] text-[11px] font-bold text-[#480D1B] hover:bg-[#FAF0F2] cursor-pointer"
+              title="Diminuir tamanho da letra"
+            >
+              A-
+            </button>
+            <button
+              type="button"
+              onClick={increaseFontSize}
+              className="px-2.5 py-1.5 rounded-xl bg-white border border-[#E6D4AF] text-[11px] font-bold text-[#480D1B] hover:bg-[#FAF0F2] cursor-pointer flex items-center gap-0.5"
+              title="Aumentar tamanho da letra (Baixa Visão)"
+            >
+              <Type className="w-3 h-3" />
+              <span>A+</span>
+            </button>
+
+            {/* High Contrast Toggle */}
+            <button
+              type="button"
+              onClick={() => updateSetting('highContrast', !settings.highContrast)}
+              className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                settings.highContrast
+                  ? 'bg-[#480D1B] text-white border-[#480D1B]'
+                  : 'bg-white text-[#480D1B] border-[#E6D4AF] hover:bg-[#FAF0F2]'
+              }`}
+              title="Alternar Alto Contraste Visual"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Contraste</span>
+            </button>
+
+            {/* Quick Activate Assisted Access */}
+            <button
+              type="button"
+              onClick={() => {
+                const next = !hasDisability;
+                setHasDisability(next);
+                setNeedsAssistedAccess(next);
+              }}
+              className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                hasDisability
+                  ? 'bg-emerald-700 text-white border-emerald-700'
+                  : 'bg-white text-[#5D1425] border-[#8D253D]/40 hover:bg-[#FAF0F2]'
+              }`}
+            >
+              <HandHeart className="w-3.5 h-3.5" />
+              <span>{hasDisability ? 'Modo PCD Ativo' : 'Acesso c/ Ajuda'}</span>
+            </button>
           </div>
         </div>
 
@@ -450,26 +610,26 @@ export const PatientLoginView: React.FC = () => {
                     onClick={() => setSelectedRole('profissional')}
                     className={`p-4 rounded-2xl text-left transition-all cursor-pointer border-2 ${
                       selectedRole === 'profissional'
-                        ? 'bg-[#F0F6FA] border-[#0B192C] text-[#0B192C] shadow-md ring-2 ring-[#0B192C]/20'
-                        : 'bg-white border-stone-200 hover:border-stone-300'
+                        ? 'vitta-pearl-blue-subbar border-[#144272] text-[#0A2647] shadow-md ring-2 ring-[#2563EB]/30'
+                        : 'bg-white border-stone-200 hover:border-[#144272]/60'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-1.5">
-                        <NursingCrest size="sm" variant="gold" />
-                        <span className="text-xs font-bold text-[#0B192C]">Vittaprofessio</span>
+                        <NursingCrest size="sm" variant="silver" />
+                        <span className="text-xs font-bold text-[#0A2647]">Vittaprofessio</span>
                       </div>
                       {selectedRole === 'profissional' && (
-                        <span className="w-5 h-5 rounded-full bg-[#0B192C] text-white flex items-center justify-center text-xs">
+                        <span className="w-5 h-5 rounded-full vitta-metallic-blue-badge text-white flex items-center justify-center text-xs">
                           ✓
                         </span>
                       )}
                     </div>
                     <div>
-                      <h3 className="font-serif font-bold text-base text-[#0B192C]">
+                      <h3 className="font-serif font-bold text-base text-[#0A2647]">
                         Corpo de Enfermagem
                       </h3>
-                      <p className="text-xs text-slate-600 mt-0.5">
+                      <p className="text-xs text-[#144272] font-medium mt-0.5">
                         Acesso exclusivo para enfermeiros com Constelação Clínica, prontuário e escalas.
                       </p>
                     </div>
@@ -484,24 +644,26 @@ export const PatientLoginView: React.FC = () => {
                 {/* CASE A: PROFISSIONAL DE ENFERMAGEM (VITTAPROFESSIO) */}
                 {/* ---------------------------------------------------- */}
                 {selectedRole === 'profissional' && (
-                  <div className="p-5 sm:p-6 rounded-2xl bg-[#F0F6FA] text-[#0B192C] border-2 border-[#0B192C]/30 shadow-sm space-y-4 animate-fadeIn">
-                    <div className="flex items-center justify-between border-b-2 border-[#0B192C]/15 pb-2">
+                  <div className="p-5 sm:p-6 rounded-2xl vitta-pearl-blue-subbar text-[#0A2647] border-2 border-[#144272] shadow-md space-y-4 animate-fadeIn">
+                    <div className="flex items-center justify-between border-b-2 border-[#144272]/30 pb-2.5">
                       <div className="flex items-center gap-2">
-                        <Stethoscope className="w-4 h-4 text-[#1E3E62]" />
-                        <span className="text-xs font-bold text-[#0B192C] uppercase tracking-wider">
-                          Cadastro de Enfermagem (Vittaprofessio)
+                        <div className="p-1.5 rounded-xl vitta-metallic-blue-badge text-white">
+                          <Stethoscope className="w-4 h-4 text-[#93C5FD]" />
+                        </div>
+                        <span className="text-xs font-extrabold text-[#0A2647] uppercase tracking-wider">
+                          Cadastro de Enfermagem • Vittaprofessio Premium
                         </span>
                       </div>
-                      <NursingCrest size="sm" variant="gold" />
+                      <NursingCrest size="sm" variant="silver" />
                     </div>
 
                     {/* MANDATORY PROFESSIONAL EMAIL ENDING IN vittaprofessio@gmail.com */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-bold text-[#0B192C]">
+                    <div className="p-3.5 rounded-2xl vitta-pearl-white-card">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-bold text-[#0A2647]">
                           E-mail Profissional Obrigatório *
                         </label>
-                        <span className="text-[10px] text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded font-bold">
+                        <span className="text-[10px] text-white vitta-metallic-blue-badge px-2.5 py-0.5 rounded-lg font-bold">
                           Terminação: vittaprofessio@gmail.com
                         </span>
                       </div>
@@ -511,16 +673,16 @@ export const PatientLoginView: React.FC = () => {
                         placeholder="Ex: enf.seunomevittaprofessio@gmail.com"
                         value={professionalEmail}
                         onChange={(e) => setProfessionalEmail(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border-2 border-[#0B192C]/40 text-xs sm:text-sm focus:outline-none focus:border-[#0B192C] bg-white text-slate-800"
+                        className="w-full px-3.5 py-2.5 rounded-xl border-2 border-[#144272] text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 bg-white text-[#0A2647] font-medium"
                       />
-                      <span className="text-[10px] text-slate-500 block mt-1">
+                      <span className="text-[10px] text-[#144272] font-medium block mt-1">
                         O e-mail deve obrigatoriamente terminar com <strong>vittaprofessio@gmail.com</strong> para homologação.
                       </span>
                     </div>
 
                     {/* Nome Completo do Enfermeiro */}
-                    <div>
-                      <label className="text-xs font-bold text-[#0B192C] block mb-1">
+                    <div className="p-3.5 rounded-2xl vitta-pearl-white-card">
+                      <label className="text-xs font-bold text-[#0A2647] block mb-1">
                         Nome Completo do(a) Enfermeiro(a) *
                       </label>
                       <input
@@ -529,19 +691,19 @@ export const PatientLoginView: React.FC = () => {
                         placeholder="Ex: Enf. Marcelo da Silva ou Enfª. Letícia Santos"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:border-[#0B192C] bg-white text-slate-800"
+                        className="w-full px-3.5 py-2.5 rounded-xl border-2 border-[#144272] text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 bg-white text-[#0A2647] font-medium"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs font-bold text-[#0B192C] block mb-1">
+                      <div className="p-3.5 rounded-2xl vitta-pearl-white-card">
+                        <label className="text-xs font-bold text-[#0A2647] block mb-1">
                           Especialidade de Atuação *
                         </label>
                         <select
                           value={specialty}
                           onChange={(e) => setSpecialty(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:border-[#0B192C] bg-white text-slate-800"
+                          className="w-full px-3.5 py-2.5 rounded-xl border-2 border-[#144272] text-xs sm:text-sm focus:outline-none bg-white text-[#0A2647] font-medium"
                         >
                           <option value="Enfermagem Obstétrica, Pré-Natal & Neonatologia">Enfermagem Obstétrica, Pré-Natal & Neonatologia</option>
                           <option value="Enfermagem Obstétrica & Pré-Natal">Enfermagem Obstétrica & Pré-Natal</option>
@@ -551,12 +713,12 @@ export const PatientLoginView: React.FC = () => {
                         </select>
                       </div>
 
-                      <div>
+                      <div className="p-3.5 rounded-2xl vitta-pearl-white-card">
                         <div className="flex items-center justify-between mb-1">
-                          <label className="text-xs font-bold text-[#0B192C]">
+                          <label className="text-xs font-bold text-[#0A2647]">
                             Registro COREN
                           </label>
-                          <span className="text-[10px] text-slate-500 font-bold">
+                          <span className="text-[10px] text-[#144272] font-bold">
                             Fictício aceito
                           </span>
                         </div>
@@ -566,12 +728,12 @@ export const PatientLoginView: React.FC = () => {
                             placeholder="Ex: COREN-SP 000.002"
                             value={councilNumber}
                             onChange={(e) => setCouncilNumber(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:border-[#0B192C] bg-white text-slate-800 pr-24"
+                            className="w-full px-3.5 py-2.5 rounded-xl border-2 border-[#144272] text-xs sm:text-sm focus:outline-none bg-white text-[#0A2647] font-medium pr-24"
                           />
                           <button
                             type="button"
                             onClick={() => setCouncilNumber('COREN-SP 000.002 (Fictício)')}
-                            className="absolute right-2 top-2 px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-[#0B192C] border border-slate-300 transition-colors cursor-pointer"
+                            className="absolute right-2 top-2 px-2 py-1 rounded-lg vitta-metallic-blue-badge text-[10px] font-bold text-white transition-colors cursor-pointer"
                           >
                             Fictício
                           </button>
@@ -580,18 +742,18 @@ export const PatientLoginView: React.FC = () => {
                     </div>
 
                     {/* Restricted Access Code */}
-                    <div className="p-4 rounded-xl bg-white border-2 border-[#0B192C] shadow-2xs space-y-2">
+                    <div className="p-4 rounded-2xl vitta-pearl-white-card space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                          <KeyRound className="w-4 h-4 text-[#1E3E62]" />
-                          <label className="text-xs font-bold text-[#0B192C] uppercase tracking-wider">
+                          <KeyRound className="w-4 h-4 text-[#144272]" />
+                          <label className="text-xs font-bold text-[#0A2647] uppercase tracking-wider">
                             Código de Autorização Institucional *
                           </label>
                         </div>
                         <button
                           type="button"
                           onClick={() => setProfessionalCode(RESTRICTED_PROFESSIONAL_CODE)}
-                          className="text-[10px] text-[#1E3E62] font-bold hover:underline cursor-pointer"
+                          className="text-[10px] text-white vitta-metallic-blue-badge px-2.5 py-1 rounded-lg font-bold cursor-pointer"
                         >
                           Inserir Chave Autorizada
                         </button>
@@ -603,9 +765,9 @@ export const PatientLoginView: React.FC = () => {
                         required
                         value={professionalCode}
                         onChange={(e) => setProfessionalCode(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs sm:text-sm focus:outline-none focus:border-[#0B192C] bg-[#F8FAFC]"
+                        className="w-full px-3.5 py-2.5 rounded-xl border-2 border-[#144272] font-mono text-xs sm:text-sm focus:outline-none bg-white text-[#0A2647]"
                       />
-                      <span className="text-[10px] text-slate-500 block">
+                      <span className="text-[10px] text-[#144272] font-medium block">
                         Chave privativa da equipe para homologação no banco de dados.
                       </span>
                     </div>
@@ -1081,15 +1243,207 @@ export const PatientLoginView: React.FC = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* =================================================================== */}
+                    {/* OPÇÃO DE ACESSIBILIDADE & ACESSO COM AJUDA (PCD / INCLUSÃO)         */}
+                    {/* =================================================================== */}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-[#FAF6ED] border-2 border-[#B89243]/60 space-y-4 transition-all">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-9 h-9 rounded-xl bg-[#5D1425] text-[#E6D4AF] flex items-center justify-center shrink-0 mt-0.5">
+                            <Accessibility className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs sm:text-sm font-bold text-[#480D1B]">
+                              Opção de Acessibilidade & Acesso com Ajuda (PCD)
+                            </h4>
+                            <p className="text-[11px] text-stone-600 leading-relaxed">
+                              Possui algum tipo de deficiência ou precisa acessar o aplicativo com a ajuda de um familiar, cuidador ou intérprete?
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextState = !hasDisability;
+                            setHasDisability(nextState);
+                            if (nextState) {
+                              setNeedsAssistedAccess(true);
+                              speakAccessibilityGuide(
+                                'Opção de acessibilidade e acesso com ajuda ativada. Selecione o tipo de deficiência e informe os dados da pessoa que está ajudando você a acessar o aplicativo.'
+                              );
+                            }
+                          }}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold border-2 transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                            hasDisability
+                              ? 'bg-[#5D1425] text-white border-[#5D1425] shadow-xs'
+                              : 'bg-white text-[#480D1B] border-[#B89243] hover:bg-[#FAF0F2]'
+                          }`}
+                        >
+                          <Accessibility className="w-4 h-4" />
+                          <span>
+                            {hasDisability ? '✓ Acessibilidade Ativada' : 'Ativar Acessibilidade / Ajuda'}
+                          </span>
+                        </button>
+                      </div>
+
+                      {hasDisability && (
+                        <div className="pt-3 border-t border-[#E6D4AF] space-y-4 animate-fadeIn">
+                          {/* 1. Seleção do Tipo de Deficiência / Necessidade */}
+                          <div>
+                            <label className="text-xs font-bold text-[#480D1B] block mb-2">
+                              1. Qual tipo de acessibilidade ou suporte você necessita? (Pode marcar mais de uma)
+                            </label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {[
+                                {
+                                  id: 'Visual / Baixa Visão',
+                                  label: '👁️ Deficiência Visual / Baixa Visão',
+                                  desc: 'Amplia letras automaticamente e ativa leitura por voz',
+                                },
+                                {
+                                  id: 'Auditiva / Surdez',
+                                  label: '🤟 Deficiência Auditiva / Surdez',
+                                  desc: 'Ativa suporte com Intérprete de Libras e alertas visuais',
+                                },
+                                {
+                                  id: 'Motora / Mobilidade Reduzida',
+                                  label: '♿ Deficiência Física / Motora',
+                                  desc: 'Botões espaçados e atendimento prioritário adaptado',
+                                },
+                                {
+                                  id: 'Cognitiva / Intelectual',
+                                  label: '🤝 Cognitiva / Intelectual / Neurodivergente',
+                                  desc: 'Navegação assistida com apoio de acompanhante',
+                                },
+                              ].map((item) => {
+                                const selected = disabilityTypes.includes(item.id);
+                                return (
+                                  <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => toggleDisabilityType(item.id)}
+                                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                                      selected
+                                        ? 'bg-[#FAF0F2] border-[#8D253D] text-[#5D1425] ring-1 ring-[#8D253D]'
+                                        : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs font-bold">{item.label}</span>
+                                      {selected && (
+                                        <span className="text-xs font-bold text-[#8D253D]">✓</span>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] text-stone-500 block mt-0.5">
+                                      {item.desc}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* 2. Acesso Assistido com Acompanhante / Cuidador */}
+                          <div className="p-3.5 rounded-xl bg-white border border-[#E6D4AF] space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <HandHeart className="w-4 h-4 text-[#8D253D]" />
+                                <span className="text-xs font-bold text-[#480D1B]">
+                                  2. Acesso com Ajuda (Acompanhante / Familiar / Cuidador)
+                                </span>
+                              </div>
+                              <label className="inline-flex items-center gap-1.5 text-xs font-bold text-[#5D1425] cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={needsAssistedAccess}
+                                  onChange={(e) => setNeedsAssistedAccess(e.target.checked)}
+                                  className="rounded accent-[#5D1425]"
+                                />
+                                <span>Acesso com ajuda</span>
+                              </label>
+                            </div>
+
+                            {needsAssistedAccess && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                <div>
+                                  <label className="text-xs font-bold text-[#480D1B] block mb-1">
+                                    Nome de quem ajuda no acesso (Acompanhante)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Ex: Maria Silva (Mãe) ou Carlos (Esposo)"
+                                    value={helperName}
+                                    onChange={(e) => setHelperName(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs bg-[#FDFBF7]"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="text-xs font-bold text-[#480D1B] block mb-1">
+                                    Vínculo / Parentesco do Acompanhante
+                                  </label>
+                                  <select
+                                    value={helperRelationship}
+                                    onChange={(e) => setHelperRelationship(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs bg-[#FDFBF7]"
+                                  >
+                                    <option value="Familiar / Acompanhante">Familiar / Acompanhante</option>
+                                    <option value="Esposo(a) / Parceiro(a)">Esposo(a) / Parceiro(a)</option>
+                                    <option value="Mãe / Pai">Mãe / Pai</option>
+                                    <option value="Cuidador(a) Profissional">Cuidador(a) Profissional</option>
+                                    <option value="Intérprete de Libras">Intérprete de Libras</option>
+                                  </select>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Solicitação de Intérprete de Libras & Observações */}
+                            <div className="pt-2 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <label className="inline-flex items-center gap-2 text-xs text-stone-700 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={needsLibrasInterpreter}
+                                  onChange={(e) => setNeedsLibrasInterpreter(e.target.checked)}
+                                  className="rounded accent-[#5D1425]"
+                                />
+                                <Ear className="w-3.5 h-3.5 text-[#8D253D]" />
+                                <span className="font-semibold">
+                                  Solicitar Intérprete de Libras nas teleconsultas e chat
+                                </span>
+                              </label>
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-bold text-[#480D1B] block mb-1">
+                                Observações de Acessibilidade para a Equipe de Enfermagem
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="Ex: Preciso de orientações por áudio no chat ou auxílio do acompanhante nas consultas..."
+                                value={accessibilityNotes}
+                                onChange={(e) => setAccessibilityNotes(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs bg-[#FDFBF7]"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
-                {/* SUBMIT BUTTON WITH BOUTIQUE MARSALA & GOLD GRADIENT */}
+                {/* SUBMIT BUTTON: METALLIC SAPPHIRE BLUE FOR PROFISSIONAL OR BOUTIQUE MARSALA FOR PACIENTE */}
                 <div className="pt-2">
                   <button
                     type="submit"
                     disabled={isSubmitting || authLoading}
-                    className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#5D1425] to-[#8D253D] hover:from-[#480D1B] hover:to-[#5D1425] text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className={`w-full py-3.5 px-6 rounded-2xl font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${
+                      selectedRole === 'profissional'
+                        ? 'vitta-metallic-blue-badge text-white hover:brightness-110'
+                        : 'bg-gradient-to-r from-[#5D1425] to-[#8D253D] hover:from-[#480D1B] hover:to-[#5D1425] text-white'
+                    }`}
                   >
                     <span>
                       {isSubmitting

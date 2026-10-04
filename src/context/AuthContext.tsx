@@ -521,6 +521,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             cycleDurationDays: storedPatient.cycleDurationDays || 28,
             periodDurationDays: storedPatient.periodDurationDays || 5,
             lastPeriodDate: storedPatient.lastPeriodDate || new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+            hasDisability: storedPatient.hasDisability ?? false,
+            disabilityTypes: storedPatient.disabilityTypes || [],
+            needsAssistedAccess: storedPatient.needsAssistedAccess ?? false,
+            helperName: storedPatient.helperName || '',
+            helperRelationship: storedPatient.helperRelationship || '',
+            needsLibrasInterpreter: storedPatient.needsLibrasInterpreter ?? false,
+            accessibilityNotes: storedPatient.accessibilityNotes || '',
           });
         }
 
@@ -652,6 +659,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           lastPeriodDate: rawPatientData.lastPeriodDate || new Date().toISOString().split('T')[0],
           contraceptiveMethod: rawPatientData.contraceptiveMethod?.trim() || '',
           pregnancyGoal: rawPatientData.pregnancyGoal || 'awareness',
+          hasDisability: Boolean(rawPatientData.hasDisability),
+          disabilityTypes: Array.isArray(rawPatientData.disabilityTypes) ? rawPatientData.disabilityTypes : [],
+          needsAssistedAccess: Boolean(rawPatientData.needsAssistedAccess),
+          helperName: rawPatientData.helperName?.trim() || '',
+          helperRelationship: rawPatientData.helperRelationship?.trim() || '',
+          needsLibrasInterpreter: Boolean(rawPatientData.needsLibrasInterpreter),
+          accessibilityNotes: rawPatientData.accessibilityNotes?.trim() || '',
         };
 
         const pData = {

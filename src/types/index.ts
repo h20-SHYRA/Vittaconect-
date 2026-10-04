@@ -48,6 +48,14 @@ export interface PatientProfile {
   initialWeight?: number;
   currentWeight?: number;
   heightCm?: number;
+  // Campos de Acessibilidade & Inclusão (PCD / Acesso com Ajuda)
+  hasDisability?: boolean;
+  disabilityTypes?: string[];
+  needsAssistedAccess?: boolean;
+  helperName?: string;
+  helperRelationship?: string;
+  needsLibrasInterpreter?: boolean;
+  accessibilityNotes?: string;
 }
 
 export interface CycleDayLog {
