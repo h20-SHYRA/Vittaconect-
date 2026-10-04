@@ -46,6 +46,215 @@ export const VittaprofessioDashboard: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<ProfessionalTab>('constellation');
   const [isOnDuty, setIsOnDuty] = useState<boolean>(professionalProfile?.onDuty ?? true);
+  const [acceptEmergencyCalls, setAcceptEmergencyCalls] = useState<boolean>(true);
+  const [allowQuickFitIns, setAllowQuickFitIns] = useState<boolean>(true);
+  const [consultationDuration, setConsultationDuration] = useState<number>(30);
+  const [scheduleSavedBanner, setScheduleSavedBanner] = useState<boolean>(false);
+
+  // Quadro de Horários Totalmente Ajustável (Configuração Semanal do Profissional)
+  const [weeklySchedule, setWeeklySchedule] = useState([
+    {
+      id: 'seg',
+      day: 'Segunda-feira',
+      enabled: true,
+      startTime: '08:00',
+      endTime: '18:00',
+      shiftType: 'Plantão + Teleconsulta',
+    },
+    {
+      id: 'ter',
+      day: 'Terça-feira',
+      enabled: true,
+      startTime: '08:00',
+      endTime: '18:00',
+      shiftType: 'Exclusivo Teleconsulta',
+    },
+    {
+      id: 'qua',
+      day: 'Quarta-feira',
+      enabled: true,
+      startTime: '09:00',
+      endTime: '19:00',
+      shiftType: 'Consultório Presencial + Online',
+    },
+    {
+      id: 'qui',
+      day: 'Quinta-feira',
+      enabled: true,
+      startTime: '08:00',
+      endTime: '18:00',
+      shiftType: 'Plantão + Teleconsulta',
+    },
+    {
+      id: 'sex',
+      day: 'Sexta-feira',
+      enabled: true,
+      startTime: '08:00',
+      endTime: '17:00',
+      shiftType: 'Exclusivo Teleconsulta',
+    },
+    {
+      id: 'sab',
+      day: 'Sábado',
+      enabled: true,
+      startTime: '08:00',
+      endTime: '14:00',
+      shiftType: 'Plantão Obstétrico / Encaixes',
+    },
+    {
+      id: 'dom',
+      day: 'Domingo',
+      enabled: false,
+      startTime: '08:00',
+      endTime: '12:00',
+      shiftType: 'Sobreaviso Emergencial',
+    },
+  ]);
+
+  // Bloqueio Rápido de Horários e Datas Específicas (Férias, Congressos, Folgas)
+  const [blockedPeriods, setBlockedPeriods] = useState([
+    {
+      id: 'blk-1',
+      title: 'Congresso Brasileiro de Enfermagem Obstétrica (COBEON)',
+      category: 'Congresso',
+      startDate: '2026-10-15',
+      endDate: '2026-10-17',
+      notes: 'Agenda bloqueada para novos agendamentos no Vittaconect.',
+    },
+    {
+      id: 'blk-2',
+      title: 'Folga Pós-Plantão 24h',
+      category: 'Folga',
+      startDate: '2026-10-22',
+      endDate: '2026-10-22',
+      notes: 'Bloqueio de agenda eletiva; apenas redirecionamento para equipe.',
+    },
+  ]);
+  const [newBlockTitle, setNewBlockTitle] = useState('');
+  const [newBlockCategory, setNewBlockCategory] = useState<'Férias' | 'Congresso' | 'Folga' | 'Reunião Clínica'>('Folga');
+  const [newBlockStart, setNewBlockStart] = useState('2026-10-28');
+  const [newBlockEnd, setNewBlockEnd] = useState('2026-10-29');
+
+  // Fila de Atendimento Inteligente (Triagem Automatizada e Classificação de Risco)
+  const [queueSortMode, setQueueSortMode] = useState<'risk_priority' | 'arrival_order'>('risk_priority');
+  const [smartQueue, setSmartQueue] = useState<
+    Array<{
+      id: string;
+      patientName: string;
+      patientEmail: string;
+      patientMode: 'gestante' | 'saude_feminina';
+      clinicalTag: string;
+      arrivalTime: string;
+      arrivalOrder: number;
+      riskLevel: 'vermelho' | 'amarelo' | 'verde';
+      chiefComplaint: string;
+      vitalSignsSummary: string;
+      isPcdAssisted?: boolean;
+    }>
+  >([
+    {
+      id: 'q-1',
+      patientName: 'Beatriz Costa Oliveira',
+      patientEmail: 'beatriz.costa@email.com',
+      patientMode: 'gestante',
+      clinicalTag: '32ª Semana • Gestante (G2P1)',
+      arrivalTime: '08:52',
+      arrivalOrder: 2,
+      riskLevel: 'vermelho',
+      chiefComplaint: 'Queixa aguda: Cefaleia frontal persistente, escotomas visuais e pico pressórico domiciliar.',
+      vitalSignsSummary: 'PA: 145x95 mmHg • FC: 96 bpm • Alerta MEOWS Vermelho',
+      isPcdAssisted: false,
+    },
+    {
+      id: 'q-2',
+      patientName: 'Mariana Silva Santos',
+      patientEmail: 'mariana.silva@email.com',
+      patientMode: 'gestante',
+      clinicalTag: '18ª Semana • Gestante (G1P0)',
+      arrivalTime: '08:35',
+      arrivalOrder: 1,
+      riskLevel: 'amarelo',
+      chiefComplaint: 'Náuseas matinais frequentes, leve tontura ao levantar e dúvida sobre suplementação.',
+      vitalSignsSummary: 'PA: 110x70 mmHg • Glicemia jejum: 94 mg/dL • Prioridade Moderada',
+      isPcdAssisted: true,
+    },
+    {
+      id: 'q-3',
+      patientName: 'Juliana Mendes Rocha',
+      patientEmail: 'juliana.rocha@email.com',
+      patientMode: 'gestante',
+      clinicalTag: '36ª Semana • Pré-Natal Termo',
+      arrivalTime: '09:04',
+      arrivalOrder: 3,
+      riskLevel: 'amarelo',
+      chiefComplaint: 'Contrações de Braxton-Hicks mais frequentes à noite e dor lombar moderada (EVA 5/10).',
+      vitalSignsSummary: 'PA: 122x78 mmHg • BCF: 148 bpm • Mobilograma Normal',
+      isPcdAssisted: false,
+    },
+    {
+      id: 'q-4',
+      patientName: 'Camila Ferreira Lima',
+      patientEmail: 'camila.lima@email.com',
+      patientMode: 'saude_feminina',
+      clinicalTag: 'Saúde da Mulher • Fase Folicular',
+      arrivalTime: '09:10',
+      arrivalOrder: 4,
+      riskLevel: 'verde',
+      chiefComplaint: 'Checagem de resultado de Papanicolau e orientação sobre troca de método anticoncepcional.',
+      vitalSignsSummary: 'PA: 115x75 mmHg • Sem queixas álgicas • Baixo Risco',
+      isPcdAssisted: false,
+    },
+  ]);
+
+  // Questionários de Pré-Consulta (Disparo Rápido & Respostas "Mastigadas")
+  const [selectedPreFormPatient, setSelectedPreFormPatient] = useState<string>('Mariana Silva Santos');
+  const [selectedPreFormTemplate, setSelectedPreFormTemplate] = useState<
+    'diabetes_gestacional' | 'humor_epds' | 'alerta_obstetrico' | 'ginecologico_ciclo'
+  >('diabetes_gestacional');
+  const [preFormDispatchedFeedback, setPreFormDispatchedFeedback] = useState<string | null>(null);
+  const [preConsultationDigestedResponses, setPreConsultationDigestedResponses] = useState([
+    {
+      id: 'pre-1',
+      patientName: 'Beatriz Costa Oliveira (32ª Sem)',
+      questionnaireTitle: 'Checklist de Sinais de Alerta Obstétrico (Pré-Consulta)',
+      submittedAt: 'Preenchido há 25 min no Vittaconect',
+      riskFlag: 'vermelho' as const,
+      digestedBullets: [
+        'Pressão Arterial Aferida em Casa: 145x95 mmHg (Elevada)',
+        'Sintomas Neurológicos/Visuais: Relata cefaleia frontal e pontos brilhantes na visão',
+        'Movimentos Fetais (Mobilograma): 8 movimentos na última hora (Preservado)',
+        'Edema: Inchaço moderado em membros inferiores e mãos desde ontem',
+      ],
+      clinicalRecommendation: 'Conduta imediata: Priorizar atendimento no topo da fila, reavaliar PA e rastreio de pré-eclâmpsia.',
+    },
+    {
+      id: 'pre-2',
+      patientName: 'Mariana Silva Santos (18ª Sem)',
+      questionnaireTitle: 'Rastreio de Diabetes Gestacional & Rotina Nutricional',
+      submittedAt: 'Preenchido há 1h no Vittaconect',
+      riskFlag: 'amarelo' as const,
+      digestedBullets: [
+        'Glicemia de Jejum Recente: 94 mg/dL (Limítrofe — corte gestacional < 92 mg/dL)',
+        'Histórico Familiar: Mãe com diabetes tipo 2; ganho ponderal de +2.1 kg até a 18ª semana',
+        'Sintomas Associados: Polidipsia leve à tarde; náuseas matinais em remissão',
+        'Adesão à Suplementação: Uso regular de Metilfolato e Sulfato Ferroso',
+      ],
+      clinicalRecommendation: 'Conduta sugerida: Solicitar TOTG 75g, orientar fracionamento de carboidratos de baixo índice glicêmico.',
+    },
+    {
+      id: 'pre-3',
+      patientName: 'Camila Ferreira Lima (Saúde da Mulher)',
+      questionnaireTitle: 'Triagem Ginecológica & Escala de Humor Pré-Consulta',
+      submittedAt: 'Preenchido há 2h no Vittaconect',
+      riskFlag: 'verde' as const,
+      digestedBullets: [
+        'Ciclo Menstrual: Regular (28 dias), fluxo moderado de 4 dias sem dismenorreia incapacitante',
+        'Escala de Humor / Bem-Estar: 3 pontos (Estável, sono reparador, sem queixas ansiosas)',
+        'Objetivo Reprodutivo: Deseja avaliar transição de pílula oral para DIU de cobre/prata',
+      ],
+      clinicalRecommendation: 'Conduta sugerida: Apresentar protocolo de inserção de DIU e revisar citologia oncótica.',
+    },
+  ]);
 
   // Selected Client/Patient for Individual 1-on-1 Chat
   const [selectedChatPatientId, setSelectedChatPatientId] = useState<string>(
@@ -197,6 +406,114 @@ export const VittaprofessioDashboard: React.FC = () => {
     }, 1800);
   };
 
+  // Update a day's schedule in the adjustable weekly schedule grid
+  const handleUpdateScheduleDay = (
+    dayId: string,
+    field: 'enabled' | 'startTime' | 'endTime' | 'shiftType',
+    value: boolean | string
+  ) => {
+    setWeeklySchedule((prev) =>
+      prev.map((item) => (item.id === dayId ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const handleSaveScheduleSettings = () => {
+    setScheduleSavedBanner(true);
+    setTimeout(() => setScheduleSavedBanner(false), 2500);
+  };
+
+  // Add a blocked period (vacation, congress, day off)
+  const handleAddBlockedPeriod = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBlockStart || !newBlockEnd) return;
+    const titleToUse =
+      newBlockTitle.trim() ||
+      `${newBlockCategory} • Agenda Bloqueada (${newBlockStart} a ${newBlockEnd})`;
+    setBlockedPeriods((prev) => [
+      {
+        id: `blk-${Date.now()}`,
+        title: titleToUse,
+        category: newBlockCategory,
+        startDate: newBlockStart,
+        endDate: newBlockEnd,
+        notes: 'Período bloqueado pelo profissional — agendamentos suspensos no Vittaconect.',
+      },
+      ...prev,
+    ]);
+    setNewBlockTitle('');
+  };
+
+  const handleQuickPresetBlock = (
+    title: string,
+    category: 'Férias' | 'Congresso' | 'Folga' | 'Reunião Clínica',
+    startDate: string,
+    endDate: string
+  ) => {
+    setBlockedPeriods((prev) => [
+      {
+        id: `blk-${Date.now()}`,
+        title,
+        category,
+        startDate,
+        endDate,
+        notes: 'Bloqueio rápido ativado com 1 clique pelo profissional.',
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleRemoveBlockedPeriod = (id: string) => {
+    setBlockedPeriods((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  // Change patient risk level in Smart Waiting Queue
+  const handleChangeQueueRisk = (id: string, newRisk: 'vermelho' | 'amarelo' | 'verde') => {
+    setSmartQueue((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, riskLevel: newRisk } : item))
+    );
+  };
+
+  // Sorted Smart Queue based on selected mode (Risk Priority vs Arrival Order)
+  const sortedSmartQueue = [...smartQueue].sort((a, b) => {
+    if (queueSortMode === 'arrival_order') {
+      return a.arrivalOrder - b.arrivalOrder;
+    }
+    const riskWeight = { vermelho: 3, amarelo: 2, verde: 1 };
+    if (riskWeight[b.riskLevel] !== riskWeight[a.riskLevel]) {
+      return riskWeight[b.riskLevel] - riskWeight[a.riskLevel];
+    }
+    return a.arrivalOrder - b.arrivalOrder;
+  });
+
+  // Dispatch Pre-Consultation Questionnaire to patient's Vittaconect & Individual Chat
+  const handleDispatchPreConsultationForm = async () => {
+    const templateLabels: Record<typeof selectedPreFormTemplate, string> = {
+      diabetes_gestacional: 'Rastreio de Diabetes Gestacional, Curva Glicêmica & Dieta',
+      humor_epds: 'Escala de Humor Perinatal & Bem-Estar Emocional (EPDS)',
+      alerta_obstetrico: 'Checklist de Sinais de Alerta Obstétrico (PA, Contrações & Mobilograma)',
+      ginecologico_ciclo: 'Questionário Ginecológico Pré-Consulta (Ciclo, Fluxo & Anticoncepção)',
+    };
+    const chosenTitle = templateLabels[selectedPreFormTemplate];
+
+    const targetPat =
+      patients.find((p) => p.name.toLowerCase().includes(selectedPreFormPatient.toLowerCase())) ||
+      selectedChatPatient;
+
+    await sendRealtimeMessage(
+      `📝 [Questionário Rápido de Pré-Consulta • Vittaprofessio] Olá, ${targetPat.name.split(' ')[0]}! ${professionalProfile?.displayName || 'Enf. Marcelo'} enviou o formulário "${chosenTitle}" para você responder antes da sua consulta. Suas respostas chegam estruturadas para agilizar nosso atendimento!`,
+      'profissional',
+      professionalProfile?.displayName || 'Enf. Marcelo',
+      profIdentifier,
+      targetPat.email || targetPat.id,
+      targetPat.name
+    );
+
+    setPreFormDispatchedFeedback(
+      `Formulário "${chosenTitle}" disparado com sucesso para o Vittaconect de ${targetPat.name}!`
+    );
+    setTimeout(() => setPreFormDispatchedFeedback(null), 3200);
+  };
+
   return (
     <div className="min-h-screen vitta-pearl-blue-bg text-[#0A2647] flex flex-col font-sans">
       {/* EXTREMITY TOP: Premium Pearl Light Blue Header with Metallic Sapphire Blue Borders & Accents */}
@@ -306,8 +623,8 @@ export const VittaprofessioDashboard: React.FC = () => {
         <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center gap-2.5 overflow-x-auto no-scrollbar py-2.5 bg-gradient-to-r from-[#D4EAFC] via-[#E5F3FE] to-[#C8E2FA]">
           {[
             { id: 'constellation', label: 'Constelação Clínica', icon: Sparkles },
+            { id: 'agenda', label: 'Agenda, Triagem & Horários', icon: Calendar },
             { id: 'metrics', label: 'Acessos & Indicadores', icon: TrendingUp },
-            { id: 'agenda', label: 'Agenda & Google Meet', icon: Calendar },
             { id: 'chat', label: 'Chat Individual 1:1', icon: MessageSquare },
             { id: 'records', label: 'Prontuários & Prescrições', icon: FileText },
             { id: 'profile', label: 'Perfil Profissional & Plantão', icon: Stethoscope },
@@ -347,11 +664,19 @@ export const VittaprofessioDashboard: React.FC = () => {
               Bem-vindo(a), {professionalProfile?.displayName || 'Enf. Marcelo'}!
             </h1>
             <p className="text-xs sm:text-sm text-[#144272] max-w-2xl leading-relaxed font-medium">
-              Ambiente clínico premium em azul claro perolado, branco perolado e azul escuro metalizado com <strong>Constelação Clínica Digital</strong>, <strong>Prontuário</strong>, <strong>Evolução SOAP</strong>, <strong>Escalas (Glasgow & GDS-15)</strong> e <strong>Chat Individual 1:1</strong>.
+              Ambiente clínico premium com <strong>Gestão de Agenda & Horários Ajustáveis</strong>, <strong>Bloqueio de Férias/Folgas</strong>, <strong>Status de Plantão Ativo</strong>, <strong>Fila de Atendimento Inteligente por Risco</strong> e <strong>Questionários de Pré-Consulta</strong>.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 self-start md:self-auto relative z-10">
+          <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto relative z-10">
+            <button
+              type="button"
+              onClick={() => setActiveTab('agenda')}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl vitta-pearl-button text-xs font-bold cursor-pointer"
+            >
+              <Calendar className="w-4 h-4 text-[#144272]" />
+              <span>Agenda, Fila & Horários</span>
+            </button>
             <a
               href="https://meet.google.com/vit-care-obst"
               target="_blank"
@@ -438,25 +763,807 @@ export const VittaprofessioDashboard: React.FC = () => {
                 </p>
               </div>
             </div>
+            {/* Painel de Triagem e Alerta de Risco Obstétrico/Ginecológico & Prioridade PCD */}
+            <div className="p-6 rounded-3xl vitta-pearl-white-card space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-[#144272]/20 pb-3">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full vitta-metallic-blue-badge text-[11px] font-bold mb-1">
+                    <Sparkles className="w-3.5 h-3.5 text-[#7DD3FC]" />
+                    <span>Triagem Inteligente • Vigilância Obstétrica, Ginecológica & PCD</span>
+                  </span>
+                  <h3 className="text-lg font-serif font-bold text-[#0A2647]">
+                    Painel de Triagem e Alerta de Risco Clínico
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setActiveTab('constellation')}
+                  className="px-3.5 py-2 rounded-xl vitta-pearl-button text-xs font-bold cursor-pointer self-start sm:self-auto"
+                >
+                  Abrir Constelação & Escalas (Glasgow / GDS-15 / EPDS)
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-2xl bg-amber-50/90 border-2 border-amber-500 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-amber-600 text-white">
+                      Atenção Obstétrica • MEOWS / PA
+                    </span>
+                    <span className="text-[11px] font-bold text-amber-900">Prioridade Alta</span>
+                  </div>
+                  <h4 className="text-xs sm:text-sm font-bold text-[#0A2647]">
+                    Beatriz Costa Oliveira (32ª Semana)
+                  </h4>
+                  <p className="text-[11px] text-amber-950 leading-relaxed">
+                    Relato de edema vespertino leve em MMII e oscilação pressórica (130x85 mmHg). Recomendado monitorar curva pressórica e aplicar Escala MEOWS/EPDS.
+                  </p>
+                  <div className="pt-1 flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const target = patients.find((p) => p.name.toLowerCase().includes('beatriz'));
+                        if (target) setSelectedChatPatientId(target.id);
+                        setActiveTab('chat');
+                      }}
+                      className="px-3 py-1.5 rounded-xl vitta-metallic-blue-badge text-[11px] font-bold text-white cursor-pointer"
+                    >
+                      Chamar no Chat 1:1
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('constellation')}
+                      className="px-3 py-1.5 rounded-xl bg-white border border-amber-600 text-[11px] font-bold text-amber-950 cursor-pointer"
+                    >
+                      Avaliar na Constelação
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl vitta-pearl-blue-subbar border-2 border-[#144272] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-md vitta-metallic-blue-badge text-white">
+                      ♿ Prioridade PCD / Acessibilidade
+                    </span>
+                    <span className="text-[11px] font-bold text-[#0A2647]">Acesso Assistido</span>
+                  </div>
+                  <h4 className="text-xs sm:text-sm font-bold text-[#0A2647]">
+                    Atendimento Adaptado & Intérprete de Libras
+                  </h4>
+                  <p className="text-[11px] text-[#144272] font-medium leading-relaxed">
+                    Pacientes com suporte de acessibilidade ou acompanhante contam com alerta prioritário na fila de teleconsulta e leitura assistida por voz.
+                  </p>
+                  <div className="pt-1 flex items-center gap-2">
+                    <button
+                      onClick={() => setActiveTab('chat')}
+                      className="px-3 py-1.5 rounded-xl vitta-pearl-button text-[11px] font-bold cursor-pointer"
+                    >
+                      Ver Canais de Chat 1:1
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-emerald-50/90 border-2 border-emerald-500 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-emerald-700 text-white">
+                      Rastreio Emocional • EPDS & GDS-15
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-900">Em Dia</span>
+                  </div>
+                  <h4 className="text-xs sm:text-sm font-bold text-[#0A2647]">
+                    Mariana Silva Santos (18ª Semana)
+                  </h4>
+                  <p className="text-[11px] text-emerald-950 leading-relaxed">
+                    Sinais vitais estáveis (PA 110x70 mmHg, BCF 144 bpm). Escalas de Glasgow (15/15), Edimburgo (EPDS) e GDS-15 disponíveis para atualização.
+                  </p>
+                  <div className="pt-1 flex items-center gap-2">
+                    <button
+                      onClick={() => setActiveTab('constellation')}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-[11px] font-bold text-white cursor-pointer"
+                    >
+                      Aplicar Escala EPDS / GDS
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* TAB 2: AGENDA & TELECONSULTAS */}
+        {/* TAB 2: GESTÃO DE AGENDA, DISPONIBILIDADE, FILA INTELIGENTE & PRÉ-CONSULTA */}
         {activeTab === 'agenda' && (
           <div className="space-y-6 animate-fadeIn">
+            {/* 1. STATUS DE ATENDIMENTO ("PLANTÃO ATIVO" / EMERGÊNCIAS & ENCAIXES RÁPIDOS) */}
+            <div className="p-5 sm:p-6 rounded-3xl vitta-pearl-white-card space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b-2 border-[#144272]/20 pb-4">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full vitta-metallic-blue-badge text-[11px] font-bold mb-1.5">
+                    <Activity className="w-3.5 h-3.5 text-[#7DD3FC]" />
+                    <span>Gestão de Agenda, Disponibilidade & Triagem Automatizada</span>
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-serif font-bold text-[#0A2647]">
+                    Status de Atendimento, Fila Inteligente & Quadro de Horários
+                  </h2>
+                  <p className="text-xs text-[#144272] font-medium">
+                    Controle seu status de plantão ativo, gerencie a fila por risco obstétrico/ginecológico, dispare questionários de pré-consulta e ajuste seus horários
+                  </p>
+                </div>
+
+                {/* Main Liga/Desliga Button for "Plantão Ativo" */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleToggleDuty}
+                    className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold border-2 transition-all cursor-pointer flex items-center gap-2 shadow-sm ${
+                      isOnDuty
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-800'
+                        : 'bg-slate-200 hover:bg-slate-300 text-slate-700 border-slate-400'
+                    }`}
+                  >
+                    <span className={`w-3 h-3 rounded-full ${isOnDuty ? 'bg-white animate-pulse' : 'bg-slate-500'}`} />
+                    <span>
+                      {isOnDuty ? 'PLANTÃO ATIVO: LIGADO (DISPONÍVEL)' : 'PLANTÃO ATIVO: DESLIGADO (PAUSA)'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Availability Switches: Emergency Calls, Quick Fit-ins & Consultation Duration */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                <div className="p-4 rounded-2xl vitta-pearl-blue-subbar border-2 border-[#144272] flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-extrabold text-[#0A2647] block">
+                      🚨 Chamadas de Emergência
+                    </span>
+                    <span className="text-[11px] text-[#144272] font-medium">
+                      Sinaliza disponibilidade imediata para urgências obstétricas
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAcceptEmergencyCalls(!acceptEmergencyCalls)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border-2 cursor-pointer transition-all shrink-0 ${
+                      acceptEmergencyCalls && isOnDuty
+                        ? 'vitta-metallic-blue-badge text-white'
+                        : 'bg-white text-slate-600 border-slate-300'
+                    }`}
+                  >
+                    {acceptEmergencyCalls && isOnDuty ? 'Ligado' : 'Desligado'}
+                  </button>
+                </div>
+
+                <div className="p-4 rounded-2xl vitta-pearl-blue-subbar border-2 border-[#144272] flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-extrabold text-[#0A2647] block">
+                      ⚡ Encaixes Rápidos no Dia
+                    </span>
+                    <span className="text-[11px] text-[#144272] font-medium">
+                      Permite que pacientes entrem na fila dinâmica de encaixe
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAllowQuickFitIns(!allowQuickFitIns)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border-2 cursor-pointer transition-all shrink-0 ${
+                      allowQuickFitIns && isOnDuty
+                        ? 'vitta-metallic-blue-badge text-white'
+                        : 'bg-white text-slate-600 border-slate-300'
+                    }`}
+                  >
+                    {allowQuickFitIns && isOnDuty ? 'Liberado' : 'Bloqueado'}
+                  </button>
+                </div>
+
+                <div className="p-4 rounded-2xl vitta-pearl-blue-subbar border-2 border-[#144272] flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-extrabold text-[#0A2647] block">
+                      ⏱️ Tempo Padrão de Consulta
+                    </span>
+                    <span className="text-[11px] text-[#144272] font-medium">
+                      Intervalo automático da grade de agendamento
+                    </span>
+                  </div>
+                  <select
+                    value={consultationDuration}
+                    onChange={(e) => setConsultationDuration(Number(e.target.value))}
+                    className="px-3 py-1.5 rounded-xl border-2 border-[#144272] bg-white text-xs font-extrabold text-[#0A2647] cursor-pointer"
+                  >
+                    <option value={20}>20 min</option>
+                    <option value={30}>30 min</option>
+                    <option value={45}>45 min</option>
+                    <option value={60}>60 min</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. FILA DE ATENDIMENTO INTELIGENTE (TRIAGEM AUTOMATIZADA E CLASSIFICAÇÃO DE RISCO) */}
+            <div className="p-5 sm:p-6 rounded-3xl vitta-pearl-white-card space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[#144272]/20 pb-3.5">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-[#144272]" />
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-[#144272]">
+                      Triagem Automatizada • Protocolo Obstétrico & Ginecológico
+                    </span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-serif font-bold text-[#0A2647] mt-0.5">
+                    Fila de Atendimento Inteligente ({sortedSmartQueue.length} Pacientes na Sala de Espera)
+                  </h3>
+                  <p className="text-xs text-[#144272] font-medium">
+                    Gestantes com queixas agudas aparecem automaticamente no topo em destaque vermelho ou amarelo
+                  </p>
+                </div>
+
+                {/* Sort Mode Selector: Risk Priority vs Arrival Order */}
+                <div className="flex items-center gap-1.5 vitta-pearl-blue-subbar p-1.5 rounded-2xl border-2 border-[#144272] self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setQueueSortMode('risk_priority')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      queueSortMode === 'risk_priority'
+                        ? 'vitta-metallic-blue-badge text-white'
+                        : 'text-[#0A2647] hover:bg-white/80'
+                    }`}
+                  >
+                    🚨 Prioridade de Risco
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQueueSortMode('arrival_order')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      queueSortMode === 'arrival_order'
+                        ? 'vitta-metallic-blue-badge text-white'
+                        : 'text-[#0A2647] hover:bg-white/80'
+                    }`}
+                  >
+                    🕒 Ordem de Chegada
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {sortedSmartQueue.map((item, idx) => {
+                  const riskStyles = {
+                    vermelho: {
+                      card: 'bg-rose-50/95 border-2 border-rose-600 shadow-md',
+                      badge: 'bg-rose-600 text-white border-rose-800',
+                      label: '🔴 VERMELHO • EMERGÊNCIA / QUEIXA AGUDA',
+                    },
+                    amarelo: {
+                      card: 'bg-amber-50/95 border-2 border-amber-500 shadow-sm',
+                      badge: 'bg-amber-500 text-white border-amber-700',
+                      label: '🟡 AMARELO • URGÊNCIA MODERADA / PRIORIDADE',
+                    },
+                    verde: {
+                      card: 'bg-emerald-50/90 border-2 border-emerald-500',
+                      badge: 'bg-emerald-600 text-white border-emerald-800',
+                      label: '🟢 VERDE • BAIXO RISCO / ROTINA ELETIVA',
+                    },
+                  }[item.riskLevel];
+
+                  return (
+                    <div key={item.id} className={`p-4 sm:p-5 rounded-2xl transition-all ${riskStyles.card}`}>
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-md bg-[#0A2647] text-white">
+                              #{idx + 1} na Fila
+                            </span>
+                            <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${riskStyles.badge}`}>
+                              {riskStyles.label}
+                            </span>
+                            <span className="text-xs font-bold text-[#0A2647]">
+                              • Chegada: {item.arrivalTime}
+                            </span>
+                            {item.isPcdAssisted && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md vitta-metallic-blue-badge text-white">
+                                ♿ PCD / Acesso Assistido
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="text-sm sm:text-base font-serif font-bold text-[#0A2647]">
+                              {item.patientName}
+                            </h4>
+                            <span className="text-xs font-bold text-[#144272]">
+                              ({item.clinicalTag})
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-[#0A2647] font-semibold leading-relaxed">
+                            <strong>Motivo / Queixa na Triagem:</strong> {item.chiefComplaint}
+                          </p>
+                          <span className="text-[11px] font-mono font-bold text-[#144272] block">
+                            📊 Parâmetros Automáticos: {item.vitalSignsSummary}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end justify-between gap-2 shrink-0">
+                          {/* Reclassify Risk Level on the fly */}
+                          <div className="flex items-center gap-1 bg-white/90 px-2.5 py-1 rounded-xl border border-[#144272]/40 text-[11px]">
+                            <span className="font-bold text-[#0A2647] mr-1">Classificação:</span>
+                            <button
+                              type="button"
+                              onClick={() => handleChangeQueueRisk(item.id, 'vermelho')}
+                              className={`px-2 py-0.5 rounded font-bold cursor-pointer ${
+                                item.riskLevel === 'vermelho' ? 'bg-rose-600 text-white' : 'text-rose-700 hover:bg-rose-100'
+                              }`}
+                            >
+                              Vermelho
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleChangeQueueRisk(item.id, 'amarelo')}
+                              className={`px-2 py-0.5 rounded font-bold cursor-pointer ${
+                                item.riskLevel === 'amarelo' ? 'bg-amber-500 text-white' : 'text-amber-800 hover:bg-amber-100'
+                              }`}
+                            >
+                              Amarelo
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleChangeQueueRisk(item.id, 'verde')}
+                              className={`px-2 py-0.5 rounded font-bold cursor-pointer ${
+                                item.riskLevel === 'verde' ? 'bg-emerald-600 text-white' : 'text-emerald-800 hover:bg-emerald-100'
+                              }`}
+                            >
+                              Verde
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenIndividualChatWithPatient(item.patientName)}
+                              className="px-3 py-2 rounded-xl vitta-pearl-button text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5 text-[#144272]" />
+                              <span>Chat 1:1</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setActiveCallAppointment({
+                                  id: item.id,
+                                  patientName: item.patientName,
+                                  patientEmail: item.patientEmail,
+                                  appointmentTime: item.arrivalTime,
+                                  appointmentDate: 'Hoje (Fila Inteligente)',
+                                  type: 'teleconsulta',
+                                  specialty: item.clinicalTag,
+                                  status: 'em_andamento',
+                                  patientMode: item.patientMode,
+                                  notes: item.chiefComplaint,
+                                })
+                              }
+                              className="px-3.5 py-2 rounded-xl vitta-metallic-blue-badge text-white text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                            >
+                              <Video className="w-3.5 h-3.5 text-[#7DD3FC]" />
+                              <span>Atender Agora</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. QUESTIONÁRIOS DE PRÉ-CONSULTA (DISPARO RÁPIDO & RESPOSTAS "MASTIGADAS") */}
+            <div className="p-5 sm:p-6 rounded-3xl vitta-pearl-white-card space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-[#144272]/20 pb-3">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full vitta-metallic-blue-badge text-[11px] font-bold mb-1">
+                    <Sparkles className="w-3.5 h-3.5 text-[#7DD3FC]" />
+                    <span>Anamnese Antecipada • Vittaconect ↔ Vittaprofessio</span>
+                  </span>
+                  <h3 className="text-lg sm:text-xl font-serif font-bold text-[#0A2647]">
+                    Questionários Rápidos de Pré-Consulta & Respostas Mastigadas
+                  </h3>
+                  <p className="text-xs text-[#144272] font-medium">
+                    Dispare formulários rápidos para a paciente preencher nas horas que antecedem a consulta e receba o resumo estruturado pronto para análise
+                  </p>
+                </div>
+              </div>
+
+              {/* Dispatch Bar */}
+              <div className="p-4 rounded-2xl vitta-pearl-blue-subbar border-2 border-[#144272] space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                  <div className="md:col-span-4">
+                    <label className="text-xs font-extrabold text-[#0A2647] block mb-1">
+                      1. Selecionar Paciente (Vittaconect):
+                    </label>
+                    <select
+                      value={selectedPreFormPatient}
+                      onChange={(e) => setSelectedPreFormPatient(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border-2 border-[#144272] bg-white text-xs font-bold text-[#0A2647]"
+                    >
+                      {patients.map((pat) => (
+                        <option key={pat.id} value={pat.name}>
+                          {pat.name} ({pat.clinicalSummary})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-5">
+                    <label className="text-xs font-extrabold text-[#0A2647] block mb-1">
+                      2. Protocolo do Questionário de Pré-Consulta:
+                    </label>
+                    <select
+                      value={selectedPreFormTemplate}
+                      onChange={(e) => setSelectedPreFormTemplate(e.target.value as any)}
+                      className="w-full px-3 py-2.5 rounded-xl border-2 border-[#144272] bg-white text-xs font-bold text-[#0A2647]"
+                    >
+                      <option value="diabetes_gestacional">
+                        🩸 Rastreio de Diabetes Gestacional, Glicemia & Dieta
+                      </option>
+                      <option value="alerta_obstetrico">
+                        🤰 Checklist de Sinais de Alerta Obstétrico (PA, Contrações, Mobilograma)
+                      </option>
+                      <option value="humor_epds">
+                        🧠 Escala de Humor Perinatal & Bem-Estar Emocional (EPDS)
+                      </option>
+                      <option value="ginecologico_ciclo">
+                        🌸 Questionário Ginecológico Pré-Consulta (Ciclo, Fluxo & Anticoncepção)
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-3">
+                    <button
+                      type="button"
+                      onClick={handleDispatchPreConsultationForm}
+                      className="w-full py-2.5 px-4 rounded-xl vitta-metallic-blue-badge text-white text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 hover:brightness-110"
+                    >
+                      <Send className="w-3.5 h-3.5 text-[#7DD3FC]" />
+                      <span>Disparar p/ Paciente</span>
+                    </button>
+                  </div>
+                </div>
+
+                {preFormDispatchedFeedback && (
+                  <div className="p-3 rounded-xl bg-emerald-100 border-2 border-emerald-500 text-emerald-950 text-xs font-bold flex items-center gap-2 animate-fadeIn">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>{preFormDispatchedFeedback}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Pre-Consultation Digested Responses ("Chegando Mastigado para Análise") */}
+              <div className="space-y-3">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-[#0A2647] block">
+                  📋 Respostas de Pré-Consulta Recebidas (Resumo Clínico Mastigado):
+                </span>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {preConsultationDigestedResponses.map((resp) => {
+                    const badgeStyle =
+                      resp.riskFlag === 'vermelho'
+                        ? 'bg-rose-600 text-white'
+                        : resp.riskFlag === 'amarelo'
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-emerald-600 text-white';
+
+                    return (
+                      <div
+                        key={resp.id}
+                        className="p-4 rounded-2xl bg-white border-2 border-[#144272] shadow-xs flex flex-col justify-between space-y-3"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${badgeStyle}`}>
+                              {resp.riskFlag === 'vermelho'
+                                ? 'Alerta Agudo'
+                                : resp.riskFlag === 'amarelo'
+                                ? 'Atenção Moderada'
+                                : 'Estável'}
+                            </span>
+                            <span className="text-[10px] font-bold text-[#144272]">
+                              {resp.submittedAt}
+                            </span>
+                          </div>
+
+                          <h4 className="text-xs sm:text-sm font-serif font-bold text-[#0A2647]">
+                            {resp.patientName}
+                          </h4>
+                          <span className="text-[11px] font-extrabold text-[#144272] block">
+                            {resp.questionnaireTitle}
+                          </span>
+
+                          <ul className="space-y-1 pt-1 border-t border-[#144272]/15 text-[11px] text-[#0A2647]">
+                            {resp.digestedBullets.map((b, i) => (
+                              <li key={i} className="flex items-start gap-1.5 leading-snug">
+                                <span className="font-bold text-[#144272]">•</span>
+                                <span>{b}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="pt-2 border-t border-[#144272]/20 space-y-2">
+                          <p className="text-[11px] font-bold text-[#0A2647] bg-[#E6F3FE] p-2 rounded-xl border border-[#144272]/30">
+                            💡 {resp.clinicalRecommendation}
+                          </p>
+                          <div className="flex items-center justify-between gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('constellation')}
+                              className="w-full py-1.5 px-3 rounded-xl vitta-pearl-button text-[11px] font-bold cursor-pointer"
+                            >
+                              Importar p/ Evolução SOAP na Constelação
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* 4. QUADRO DE HORÁRIOS TOTALMENTE AJUSTÁVEL & BLOQUEIO DE DATAS (FÉRIAS, CONGRESSOS, FOLGAS) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left 7 cols: Quadro de Horários Ajustável */}
+              <div className="lg:col-span-7 p-5 sm:p-6 rounded-3xl vitta-pearl-white-card space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-[#144272]/20 pb-3">
+                  <div>
+                    <h3 className="text-lg font-serif font-bold text-[#0A2647]">
+                      Quadro de Horários Totalmente Ajustável
+                    </h3>
+                    <p className="text-xs text-[#144272] font-medium">
+                      Defina os dias da semana, horários de início/término e modalidade (plantão, teleconsulta ou presencial)
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveScheduleSettings}
+                    className="px-4 py-2 rounded-xl vitta-metallic-blue-badge text-white text-xs font-bold cursor-pointer"
+                  >
+                    Salvar Grade de Horários
+                  </button>
+                </div>
+
+                {scheduleSavedBanner && (
+                  <div className="p-3 rounded-xl bg-emerald-100 border-2 border-emerald-500 text-emerald-950 text-xs font-bold flex items-center gap-2 animate-fadeIn">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                    <span>Quadro de horários sincronizado! As pacientes verão apenas os horários habilitados.</span>
+                  </div>
+                )}
+
+                <div className="space-y-2.5">
+                  {weeklySchedule.map((dayItem) => (
+                    <div
+                      key={dayItem.id}
+                      className={`p-3 rounded-2xl border-2 transition-all grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center ${
+                        dayItem.enabled
+                          ? 'vitta-pearl-blue-subbar border-[#144272]'
+                          : 'bg-slate-100/80 border-slate-300 opacity-75'
+                      }`}
+                    >
+                      <div className="sm:col-span-3 flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={dayItem.enabled}
+                          onChange={(e) =>
+                            handleUpdateScheduleDay(dayItem.id, 'enabled', e.target.checked)
+                          }
+                          className="w-4 h-4 accent-[#0A2647] cursor-pointer"
+                        />
+                        <span className="text-xs font-extrabold text-[#0A2647]">
+                          {dayItem.day}
+                        </span>
+                      </div>
+
+                      {dayItem.enabled ? (
+                        <>
+                          <div className="sm:col-span-4 flex items-center gap-1.5">
+                            <input
+                              type="time"
+                              value={dayItem.startTime}
+                              onChange={(e) =>
+                                handleUpdateScheduleDay(dayItem.id, 'startTime', e.target.value)
+                              }
+                              className="px-2 py-1 rounded-lg border border-[#144272] bg-white text-xs font-bold text-[#0A2647]"
+                            />
+                            <span className="text-xs font-bold text-[#144272]">às</span>
+                            <input
+                              type="time"
+                              value={dayItem.endTime}
+                              onChange={(e) =>
+                                handleUpdateScheduleDay(dayItem.id, 'endTime', e.target.value)
+                              }
+                              className="px-2 py-1 rounded-lg border border-[#144272] bg-white text-xs font-bold text-[#0A2647]"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-5">
+                            <select
+                              value={dayItem.shiftType}
+                              onChange={(e) =>
+                                handleUpdateScheduleDay(dayItem.id, 'shiftType', e.target.value)
+                              }
+                              className="w-full px-2.5 py-1.5 rounded-lg border border-[#144272] bg-white text-xs font-bold text-[#0A2647]"
+                            >
+                              <option value="Plantão + Teleconsulta">Plantão + Teleconsulta</option>
+                              <option value="Exclusivo Teleconsulta">Exclusivo Teleconsulta</option>
+                              <option value="Consultório Presencial + Online">Consultório Presencial + Online</option>
+                              <option value="Plantão Obstétrico / Encaixes">Plantão Obstétrico / Encaixes</option>
+                              <option value="Plantão Obstétrico 24h">Plantão Obstétrico 24h</option>
+                              <option value="Sobreaviso Emergencial">Sobreaviso Emergencial</option>
+                            </select>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="sm:col-span-9 text-xs font-bold text-slate-500 italic">
+                          Dia sem expediente / Folga programada (Indisponível para agendamento)
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right 5 cols: Bloqueio Rápido de Horários (Férias, Congressos, Folgas) */}
+              <div className="lg:col-span-5 p-5 sm:p-6 rounded-3xl vitta-pearl-white-card space-y-4">
+                <div className="border-b-2 border-[#144272]/20 pb-3">
+                  <h3 className="text-lg font-serif font-bold text-[#0A2647]">
+                    Bloqueio de Horários & Datas
+                  </h3>
+                  <p className="text-xs text-[#144272] font-medium">
+                    Bloqueie férias, congressos ou folgas para impedir agendamentos das pacientes nesses períodos
+                  </p>
+                </div>
+
+                {/* 1-Click Quick Preset Blocks */}
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#144272] block">
+                    Bloqueio Rápido em 1 Clique:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPresetBlock(
+                          'Férias Programadas da Equipe',
+                          'Férias',
+                          '2026-11-10',
+                          '2026-11-24'
+                        )
+                      }
+                      className="px-3 py-1.5 rounded-xl vitta-pearl-button text-[11px] font-bold cursor-pointer"
+                    >
+                      + Bloquear Férias
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPresetBlock(
+                          'Simpósio Internacional de Obstetrícia',
+                          'Congresso',
+                          '2026-11-05',
+                          '2026-11-07'
+                        )
+                      }
+                      className="px-3 py-1.5 rounded-xl vitta-pearl-button text-[11px] font-bold cursor-pointer"
+                    >
+                      + Bloquear Congresso
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleQuickPresetBlock(
+                          'Folga de Plantão / Descanso',
+                          'Folga',
+                          '2026-10-30',
+                          '2026-10-30'
+                        )
+                      }
+                      className="px-3 py-1.5 rounded-xl vitta-pearl-button text-[11px] font-bold cursor-pointer"
+                    >
+                      + Bloquear Folga
+                    </button>
+                  </div>
+                </div>
+
+                {/* Custom Date Block Form */}
+                <form
+                  onSubmit={handleAddBlockedPeriod}
+                  className="p-3.5 rounded-2xl vitta-pearl-blue-subbar border-2 border-[#144272] space-y-2.5"
+                >
+                  <span className="text-xs font-extrabold text-[#0A2647] block">
+                    Novo Bloqueio Personalizado:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <select
+                      value={newBlockCategory}
+                      onChange={(e) => setNewBlockCategory(e.target.value as any)}
+                      className="px-2.5 py-2 rounded-xl border border-[#144272] bg-white text-xs font-bold text-[#0A2647]"
+                    >
+                      <option value="Folga">Folga / Descanso</option>
+                      <option value="Férias">Férias</option>
+                      <option value="Congresso">Congresso / Evento</option>
+                      <option value="Reunião Clínica">Reunião Clínica</option>
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Motivo (Ex: Congresso SP)"
+                      value={newBlockTitle}
+                      onChange={(e) => setNewBlockTitle(e.target.value)}
+                      className="px-2.5 py-2 rounded-xl border border-[#144272] bg-white text-xs font-bold text-[#0A2647]"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-[#144272] block">Início:</label>
+                      <input
+                        type="date"
+                        value={newBlockStart}
+                        onChange={(e) => setNewBlockStart(e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-xl border border-[#144272] bg-white text-xs font-bold text-[#0A2647]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-[#144272] block">Término:</label>
+                      <input
+                        type="date"
+                        value={newBlockEnd}
+                        onChange={(e) => setNewBlockEnd(e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-xl border border-[#144272] bg-white text-xs font-bold text-[#0A2647]"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full py-2 rounded-xl vitta-metallic-blue-badge text-white text-xs font-bold cursor-pointer"
+                  >
+                    🔒 Confirmar Bloqueio na Agenda
+                  </button>
+                </form>
+
+                {/* Active Blocked Periods List */}
+                <div className="space-y-2 max-h-[230px] overflow-y-auto pr-1">
+                  {blockedPeriods.map((blk) => (
+                    <div
+                      key={blk.id}
+                      className="p-3 rounded-2xl bg-white border-2 border-[#144272] flex items-center justify-between gap-2"
+                    >
+                      <div>
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded vitta-metallic-blue-badge text-white">
+                          {blk.category}
+                        </span>
+                        <h4 className="text-xs font-bold text-[#0A2647] mt-1">{blk.title}</h4>
+                        <span className="text-[11px] font-mono text-[#144272] font-semibold block">
+                          📅 {blk.startDate} até {blk.endDate}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBlockedPeriod(blk.id)}
+                        className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-[11px] font-bold cursor-pointer shrink-0"
+                      >
+                        Desbloquear
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 5. CONSULTAS AGENDADAS DO DIA */}
             <div className="flex items-center justify-between p-5 rounded-3xl vitta-pearl-white-card">
               <div>
                 <h2 className="text-xl font-serif font-bold text-[#0A2647]">
-                  Agenda Clínica do Dia
+                  Consultas Confirmadas na Grade de Hoje
                 </h2>
                 <p className="text-xs text-[#144272] font-medium">
-                  Gerencie seus horários, inicie teleconsultas, abra o chat individual e acesse o prontuário
+                  Horários já reservados pelas pacientes de acordo com sua disponibilidade
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold px-3.5 py-1.5 rounded-xl vitta-metallic-blue-badge">
-                  Agenda Ativa • Vittaprofessio
+                  {appointments.length} Agendamentos Hoje
                 </span>
               </div>
             </div>
@@ -739,38 +1846,65 @@ export const VittaprofessioDashboard: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 rounded-3xl vitta-pearl-white-card">
               <div>
                 <h2 className="text-xl font-serif font-bold text-[#0A2647]">
-                  Prontuários & Emissão de Prescrições
+                  Prontuários & Emissão de Prescrições Oficiais
                 </h2>
                 <p className="text-xs text-[#144272] font-medium">
-                  Histórico clínico com assinatura digital e envio direto ao celular da paciente
+                  Histórico clínico com assinatura digital COREN, exportação em PDF/Impressão e envio direto ao chat individual da paciente
                 </p>
               </div>
 
-              <button
-                onClick={() => setShowPrescriptionModal(true)}
-                className="px-4 py-2.5 rounded-2xl vitta-metallic-blue-badge text-xs font-bold transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
-              >
-                <Plus className="w-4 h-4 text-[#7DD3FC]" />
-                <span>Emitir Prescrição Digital</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2.5 rounded-2xl vitta-pearl-button text-xs font-bold flex items-center gap-2 cursor-pointer"
+                >
+                  <FileText className="w-4 h-4 text-[#144272]" />
+                  <span>Imprimir / Exportar PDF Oficial</span>
+                </button>
+                <button
+                  onClick={() => setShowPrescriptionModal(true)}
+                  className="px-4 py-2.5 rounded-2xl vitta-metallic-blue-badge text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 text-[#7DD3FC]" />
+                  <span>Emitir Prescrição Digital</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-5 rounded-3xl vitta-pearl-white-card space-y-3">
                 <div className="flex items-center justify-between border-b border-[#144272]/20 pb-2">
                   <span className="text-xs font-bold text-[#0A2647]">
-                    Mariana Silva Santos (18 Semanas)
+                    Mariana Silva Santos (18 Semanas • G1P0)
                   </span>
-                  <span className="text-[11px] text-emerald-800 font-bold">
+                  <span className="text-[11px] text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-lg font-bold border border-emerald-300">
                     · Pré-Natal Ativo
                   </span>
                 </div>
                 <p className="text-xs text-[#144272] leading-relaxed">
-                  <strong>Última Conduta:</strong> Prescrição de polivitamínico gestacional e suplementação de ferro. Solicitado Ultrassom Morfológico para a 20ª semana.
+                  <strong>Última Conduta & Escalas:</strong> Prescrição de polivitamínico gestacional e suplementação de ferro. Solicitado Ultrassom Morfológico para a 20ª semana. Escala de Glasgow 15/15, EPDS 3/30 (Baixo Risco).
                 </p>
-                <div className="text-[11px] text-slate-600 flex items-center justify-between pt-1">
-                  <span>Atualizado por: Enfª. Letícia & Enf. Marcelo</span>
+                <div className="text-[11px] text-[#144272] font-medium flex items-center justify-between pt-1">
+                  <span>Assinado: {professionalProfile?.displayName || 'Enf. Marcelo'} ({professionalProfile?.councilNumber || 'COREN-SP 000.002'})</span>
                   <span>Ontem às 16:40</span>
+                </div>
+                <div className="pt-2 border-t border-[#144272]/15 flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => window.print()}
+                    className="px-3 py-1.5 rounded-xl vitta-pearl-button text-[11px] font-bold cursor-pointer"
+                  >
+                    🖨️ Exportar Dossiê PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      const target = patients.find((p) => p.name.toLowerCase().includes('mariana'));
+                      if (target) setSelectedChatPatientId(target.id);
+                      setActiveTab('chat');
+                    }}
+                    className="px-3 py-1.5 rounded-xl vitta-metallic-blue-badge text-[11px] font-bold text-white cursor-pointer"
+                  >
+                    📨 Abrir Chat Individual da Paciente
+                  </button>
                 </div>
               </div>
 
@@ -779,16 +1913,34 @@ export const VittaprofessioDashboard: React.FC = () => {
                   <span className="text-xs font-bold text-[#0A2647]">
                     Camila Ferreira Lima (Saúde Feminina)
                   </span>
-                  <span className="text-[11px] text-[#144272] font-bold">
+                  <span className="text-[11px] text-[#0A2647] bg-[#DCEFFE] px-2.5 py-0.5 rounded-lg font-bold border border-[#144272]">
                     · Rotina Preventiva
                   </span>
                 </div>
                 <p className="text-xs text-[#144272] leading-relaxed">
-                  <strong>Última Conduta:</strong> Coleta de Papanicolau em lâmina digital. Orientada sobre autoexame e ajuste do horário do anticoncepcional oral.
+                  <strong>Última Conduta & Escalas:</strong> Coleta de Papanicolau em lâmina digital. Orientada sobre autoexame e ajuste do horário do anticoncepcional oral. GDS-15 dentro da normalidade.
                 </p>
-                <div className="text-[11px] text-slate-600 flex items-center justify-between pt-1">
+                <div className="text-[11px] text-[#144272] font-medium flex items-center justify-between pt-1">
                   <span>Atualizado por: Enfª. Bianca & Enfª. Stephanie</span>
                   <span>28 de Setembro</span>
+                </div>
+                <div className="pt-2 border-t border-[#144272]/15 flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => window.print()}
+                    className="px-3 py-1.5 rounded-xl vitta-pearl-button text-[11px] font-bold cursor-pointer"
+                  >
+                    🖨️ Exportar Dossiê PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      const target = patients.find((p) => p.name.toLowerCase().includes('camila'));
+                      if (target) setSelectedChatPatientId(target.id);
+                      setActiveTab('chat');
+                    }}
+                    className="px-3 py-1.5 rounded-xl vitta-metallic-blue-badge text-[11px] font-bold text-white cursor-pointer"
+                  >
+                    📨 Abrir Chat Individual da Paciente
+                  </button>
                 </div>
               </div>
             </div>
@@ -823,18 +1975,81 @@ export const VittaprofessioDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-4 rounded-2xl vitta-pearl-blue-subbar border-2 border-[#144272] text-xs space-y-1.5">
+                <div className="p-4 rounded-2xl vitta-pearl-blue-subbar border-2 border-[#144272] text-xs space-y-2">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-[#144272] font-semibold">Status de Plantão:</span>
-                    <span className="font-bold text-emerald-800 flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      Ativo 24h
-                    </span>
+                    <span className="text-[#144272] font-semibold">Status de Atendimento:</span>
+                    <button
+                      type="button"
+                      onClick={handleToggleDuty}
+                      className={`px-3 py-1 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer border ${
+                        isOnDuty
+                          ? 'bg-emerald-600 text-white border-emerald-800'
+                          : 'bg-slate-200 text-slate-700 border-slate-400'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${isOnDuty ? 'bg-white animate-pulse' : 'bg-slate-500'}`} />
+                      <span>{isOnDuty ? 'Plantão Ativo (Ligado)' : 'Fora de Plantão'}</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#144272] font-semibold">Chamadas de Emergência / Encaixes:</span>
+                    <button
+                      type="button"
+                      onClick={() => setAcceptEmergencyCalls(!acceptEmergencyCalls)}
+                      className="font-bold text-[#0A2647] underline cursor-pointer"
+                    >
+                      {acceptEmergencyCalls && isOnDuty ? 'Habilitados Agora' : 'Pausados'}
+                    </button>
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-[#144272] font-semibold">Corpo Clínico de Enfermagem:</span>
                     <span className="font-bold text-[#0A2647]">Letícia • Marcelo • Bianca • Stephanie</span>
                   </div>
+                </div>
+              </div>
+
+              {/* Quick Management Cards inside Profile Tab for Schedule, Blocked Dates, Smart Queue & Pre-Consultation */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
+                <div className="p-4 rounded-2xl vitta-pearl-blue-subbar border-2 border-[#144272] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-[#0A2647]">
+                      📅 Gestão de Agenda & Disponibilidade
+                    </span>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-lg vitta-metallic-blue-badge text-white">
+                      {weeklySchedule.filter((d) => d.enabled).length} dias ativos/sem
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#144272] font-medium">
+                    Quadro de horários ajustável ({consultationDuration} min/consulta) e {blockedPeriods.length} períodos bloqueados (férias/congressos/folgas).
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('agenda')}
+                    className="px-3.5 py-2 rounded-xl vitta-pearl-button text-xs font-bold cursor-pointer"
+                  >
+                    Configurar Horários & Bloqueios de Agenda →
+                  </button>
+                </div>
+
+                <div className="p-4 rounded-2xl vitta-pearl-blue-subbar border-2 border-[#144272] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-[#0A2647]">
+                      🚨 Fila Inteligente & Pré-Consulta
+                    </span>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-lg bg-rose-600 text-white">
+                      {smartQueue.filter((q) => q.riskLevel === 'vermelho').length} Emergência no Topo
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#144272] font-medium">
+                    Triagem automatizada por risco obstétrico/ginecológico e disparo de questionários rápidos de pré-consulta para o Vittaconect.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('agenda')}
+                    className="px-3.5 py-2 rounded-xl vitta-metallic-blue-badge text-white text-xs font-bold cursor-pointer"
+                  >
+                    Abrir Fila de Risco & Questionários Pré-Consulta →
+                  </button>
                 </div>
               </div>
 

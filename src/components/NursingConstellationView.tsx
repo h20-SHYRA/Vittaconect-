@@ -16,7 +16,9 @@ import {
   Brain,
   HeartHandshake,
   Orbit,
-  Users
+  Users,
+  Printer,
+  Baby
 } from 'lucide-react';
 import { NursingCrest } from './NursingCrest';
 import { useAuth } from '../context/AuthContext';
@@ -27,13 +29,122 @@ import {
 } from '../services/realtimeChat';
 
 type ConstellationNode = 'prontuario' | 'evolucao' | 'escalas' | 'anamnese' | 'meet' | null;
-type ScaleType = 'glasgow' | 'gds' | 'braden' | 'morse' | 'meows' | 'eva';
+type ScaleType = 'glasgow' | 'gds' | 'epds' | 'braden' | 'morse' | 'meows' | 'eva';
 
 interface GDSQuestion {
   id: number;
   question: string;
   depressiveAnswer: 'sim' | 'nao';
 }
+
+interface EPDSQuestion {
+  id: number;
+  question: string;
+  options: { label: string; points: number }[];
+}
+
+const EPDS_10_QUESTIONS: EPDSQuestion[] = [
+  {
+    id: 1,
+    question: '1. Tenho sido capaz de rir e achar graça das coisas:',
+    options: [
+      { label: '0 — Como eu sempre fiz', points: 0 },
+      { label: '1 — Não tanto quanto antes', points: 1 },
+      { label: '2 — Sem dúvida, menos que antes', points: 2 },
+      { label: '3 — De jeito nenhum', points: 3 },
+    ],
+  },
+  {
+    id: 2,
+    question: '2. Tenho olhado para o futuro com alegria e expectativa:',
+    options: [
+      { label: '0 — Tanto quanto sempre fiz', points: 0 },
+      { label: '1 — Um pouco menos do que costumava fazer', points: 1 },
+      { label: '2 — Muito menos do que costumava fazer', points: 2 },
+      { label: '3 — Praticamente não', points: 3 },
+    ],
+  },
+  {
+    id: 3,
+    question: '3. Tenho me culpado sem necessidade quando as coisas saem erradas:',
+    options: [
+      { label: '0 — Não, nunca', points: 0 },
+      { label: '1 — Não com muita frequência', points: 1 },
+      { label: '2 — Sim, algumas vezes', points: 2 },
+      { label: '3 — Sim, na maioria das vezes', points: 3 },
+    ],
+  },
+  {
+    id: 4,
+    question: '4. Tenho ficado ansiosa ou preocupada sem motivo aparente:',
+    options: [
+      { label: '0 — Não, de maneira alguma', points: 0 },
+      { label: '1 — Quase nunca', points: 1 },
+      { label: '2 — Sim, às vezes', points: 2 },
+      { label: '3 — Sim, com muita frequência', points: 3 },
+    ],
+  },
+  {
+    id: 5,
+    question: '5. Tenho me sentido assustada ou em pânico sem um bom motivo:',
+    options: [
+      { label: '0 — Não, nada', points: 0 },
+      { label: '1 — Não, muito raramente', points: 1 },
+      { label: '2 — Sim, algumas vezes', points: 2 },
+      { label: '3 — Sim, muitas vezes', points: 3 },
+    ],
+  },
+  {
+    id: 6,
+    question: '6. Tenho me sentido sobrecarregada pelas tarefas e rotinas diárias:',
+    options: [
+      { label: '0 — Não, tenho lidado tão bem quanto antes', points: 0 },
+      { label: '1 — Não, na maioria das vezes lido bem', points: 1 },
+      { label: '2 — Sim, às vezes não tenho lidado tão bem', points: 2 },
+      { label: '3 — Sim, na maioria das vezes não consigo lidar bem', points: 3 },
+    ],
+  },
+  {
+    id: 7,
+    question: '7. Tenho me sentido tão infeliz que tenho tido dificuldade para dormir:',
+    options: [
+      { label: '0 — Não, nenhuma vez', points: 0 },
+      { label: '1 — Não com muita frequência', points: 1 },
+      { label: '2 — Sim, algumas vezes', points: 2 },
+      { label: '3 — Sim, na maioria das vezes', points: 3 },
+    ],
+  },
+  {
+    id: 8,
+    question: '8. Tenho me sentido triste ou muito mal:',
+    options: [
+      { label: '0 — Não, de jeito nenhum', points: 0 },
+      { label: '1 — Não com muita frequência', points: 1 },
+      { label: '2 — Sim, muitas vezes', points: 2 },
+      { label: '3 — Sim, na maioria das vezes', points: 3 },
+    ],
+  },
+  {
+    id: 9,
+    question: '9. Tenho me sentido tão triste que tenho chorado:',
+    options: [
+      { label: '0 — Não, nunca', points: 0 },
+      { label: '1 — Só ocasionalmente', points: 1 },
+      { label: '2 — Sim, bastante vezes', points: 2 },
+      { label: '3 — Sim, a maior parte do tempo', points: 3 },
+    ],
+  },
+  {
+    id: 10,
+    question: '10. A ideia de fazer mal a mim mesma passou pela minha cabeça:',
+    options: [
+      { label: '0 — Nunca', points: 0 },
+      { label: '1 — Quase nunca', points: 1 },
+      { label: '2 — Às vezes', points: 2 },
+      { label: '3 — Sim, com bastante frequência', points: 3 },
+    ],
+  },
+];
 
 const GDS_15_QUESTIONS: GDSQuestion[] = [
   { id: 1, question: '1. Você está basicamente satisfeita com sua vida?', depressiveAnswer: 'nao' },
@@ -145,6 +256,23 @@ export const NursingConstellationView: React.FC = () => {
     15: 'nao',
   });
 
+  // 2.5 Escala de Edimburgo (EPDS - Depressão Gestacional e Pós-Parto)
+  const [epdsAnswers, setEpdsAnswers] = useState<Record<number, number>>({
+    1: 0,
+    2: 0,
+    3: 1,
+    4: 1,
+    5: 0,
+    6: 1,
+    7: 0,
+    8: 0,
+    9: 0,
+    10: 0,
+  });
+
+  // Prontuário chat dispatch feedback
+  const [prontuarioSentChat, setProntuarioSentChat] = useState(false);
+
   // 3. Escala de Braden
   const [bradenSensory, setBradenSensory] = useState(4);
   const [bradenMoisture, setBradenMoisture] = useState(4);
@@ -222,6 +350,30 @@ export const NursingConstellationView: React.FC = () => {
     };
   };
 
+  // Calculate EPDS (Escala de Depressão Gestacional e Pós-Parto de Edimburgo) Score
+  const epdsScore = EPDS_10_QUESTIONS.reduce((acc, q) => acc + (epdsAnswers[q.id] ?? 0), 0);
+  const getEpdsClassification = (score: number) => {
+    if (score <= 9) {
+      return {
+        label: 'Baixo Risco Emocional (0–9 pts)',
+        color: 'text-emerald-800 bg-emerald-50 border-emerald-300',
+        conduct: 'Manter escuta acolhedora no pré-natal/puerpério e rede de apoio familiar fortalecida.',
+      };
+    }
+    if (score <= 12) {
+      return {
+        label: 'Risco Moderado / Atenção Emocional (10–12 pts)',
+        color: 'text-amber-800 bg-amber-50 border-amber-300',
+        conduct: 'Reavaliar em 2 semanas, intensificar acolhimento de enfermagem e ofertar psicoterapia perinatal.',
+      };
+    }
+    return {
+      label: 'Alto Risco para Depressão Gestacional/Pós-Parto (≥ 13 pts)',
+      color: 'text-rose-800 bg-rose-50 border-rose-300',
+      conduct: 'Encaminhamento prioritário para Saúde Mental / Psicologia Perinatal e acompanhamento multidisciplinar.',
+    };
+  };
+
   // Calculate Braden Score
   const bradenScore = bradenSensory + bradenMoisture + bradenActivity + bradenMobility + bradenNutrition + bradenFriction;
   const getBradenRisk = (score: number) => {
@@ -296,6 +448,8 @@ export const NursingConstellationView: React.FC = () => {
       scaleSummary = `Escala de Coma de Glasgow (ECG-P): ${glasgowTotal}/15 pontos (AO:${glasgowEye} RV:${glasgowVerbal} RM:${glasgowMotor} P:-${glasgowPupil}) — ${getGlasgowClassification(glasgowTotal).label}`;
     } else if (activeScale === 'gds') {
       scaleSummary = `Escala de Depressão Geriátrica (GDS-15): ${gdsScore}/15 pontos — ${getGdsClassification(gdsScore).label}`;
+    } else if (activeScale === 'epds') {
+      scaleSummary = `Escala de Edimburgo (EPDS Gestacional/Pós-Parto): ${epdsScore}/30 pontos — ${getEpdsClassification(epdsScore).label}`;
     } else if (activeScale === 'braden') {
       scaleSummary = `Escala de Braden: ${bradenScore} pontos — ${getBradenRisk(bradenScore).label}`;
     } else if (activeScale === 'morse') {
@@ -319,6 +473,20 @@ export const NursingConstellationView: React.FC = () => {
       setScaleSaved(false);
       setActiveModal(null);
     }, 1400);
+  };
+
+  const handleSendProntuarioToChat = async () => {
+    const latestRecord = clinicalHistory[0];
+    await sendRealtimeMessage(
+      `📋 [Resumo Oficial de Prontuário Digital • Vittaprofessio] Paciente: ${activePatientObj.name}. Último Registro (${latestRecord?.title || 'Evolução'}): ${latestRecord?.summary || ''}. Assinado por ${professionalProfile?.displayName || 'Enf. Marcelo'} (${professionalProfile?.councilNumber || 'COREN-SP 000.002'}).`,
+      'profissional',
+      professionalProfile?.displayName || 'Enf. Marcelo',
+      profIdentifier,
+      patIdentifier,
+      activePatientObj.name
+    );
+    setProntuarioSentChat(true);
+    setTimeout(() => setProntuarioSentChat(false), 2600);
   };
 
   return (
@@ -673,26 +841,48 @@ export const NursingConstellationView: React.FC = () => {
               ))}
             </div>
 
-            <div className="pt-2 flex flex-wrap justify-end gap-2 border-t border-[#144272]/25">
-              <button
-                onClick={() => setActiveModal(null)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-[#0A2647] hover:bg-white/70 cursor-pointer"
-              >
-                Fechar
-              </button>
-              <button
-                onClick={() => setActiveModal('escalas')}
-                className="px-4 py-2 rounded-xl vitta-pearl-button text-xs font-bold cursor-pointer"
-              >
-                Aplicar Escala Clínica
-              </button>
-              <button
-                onClick={() => setActiveModal('evolucao')}
-                className="px-4 py-2 rounded-xl vitta-metallic-blue-badge text-white text-xs font-bold cursor-pointer flex items-center gap-1.5"
-              >
-                <span>Nova Evolução (SOAP)</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+            <div className="pt-2 flex flex-wrap justify-between items-center gap-2 border-t border-[#144272]/25">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3.5 py-2 rounded-xl vitta-pearl-button text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5 text-[#144272]" />
+                  <span>Imprimir / Exportar PDF Oficial</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendProntuarioToChat}
+                  className="px-3.5 py-2 rounded-xl vitta-pearl-button text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                >
+                  <Send className="w-3.5 h-3.5 text-[#144272]" />
+                  <span>
+                    {prontuarioSentChat ? '✓ Enviado no Chat Individual!' : 'Enviar Laudo no Chat da Paciente'}
+                  </span>
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setActiveModal(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-[#0A2647] hover:bg-white/70 cursor-pointer"
+                >
+                  Fechar
+                </button>
+                <button
+                  onClick={() => setActiveModal('escalas')}
+                  className="px-4 py-2 rounded-xl vitta-pearl-button text-xs font-bold cursor-pointer"
+                >
+                  Aplicar Escala Clínica
+                </button>
+                <button
+                  onClick={() => setActiveModal('evolucao')}
+                  className="px-4 py-2 rounded-xl vitta-metallic-blue-badge text-white text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Nova Evolução (SOAP)</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -851,6 +1041,7 @@ export const NursingConstellationView: React.FC = () => {
               {[
                 { id: 'glasgow', label: '🧠 Escala de Glasgow (ECG-P)' },
                 { id: 'gds', label: '🤍 Depressão Geriátrica (GDS-15)' },
+                { id: 'epds', label: '🤰 Escala de Edimburgo (EPDS)' },
                 { id: 'braden', label: 'Escala de Braden (Lesão)' },
                 { id: 'morse', label: 'Escala de Morse (Quedas)' },
                 { id: 'meows', label: 'Escala MEOWS (Obstétrica)' },
@@ -869,6 +1060,62 @@ export const NursingConstellationView: React.FC = () => {
                 </button>
               ))}
             </div>
+
+            {/* =================================================================== */}
+            {/* SCALE 2.5: ESCALA DE EDIMBURGO (EPDS — GESTACIONAL E PÓS-PARTO)     */}
+            {/* =================================================================== */}
+            {activeScale === 'epds' && (
+              <div className="p-5 rounded-2xl vitta-pearl-white-card space-y-4 animate-fadeIn text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#144272]/20 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Baby className="w-5 h-5 text-[#144272]" />
+                    <div>
+                      <span className="font-serif font-bold text-sm text-[#0A2647] block">
+                        Escala de Depressão Gestacional e Pós-Parto de Edimburgo (EPDS)
+                      </span>
+                      <span className="text-[11px] text-[#144272] font-medium">
+                        Rastreamento emocional perinatal validado (10 itens • 0 a 30 pontos)
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`px-3.5 py-1.5 rounded-xl font-bold border ${getEpdsClassification(epdsScore).color}`}>
+                    Escore EPDS: {epdsScore}/30 — {getEpdsClassification(epdsScore).label}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[340px] overflow-y-auto pr-1">
+                  {EPDS_10_QUESTIONS.map((q) => (
+                    <div key={q.id} className="p-3 rounded-xl vitta-pearl-blue-subbar border border-[#144272]">
+                      <label className="font-bold text-[#0A2647] block mb-1.5 leading-snug">
+                        {q.question}
+                      </label>
+                      <select
+                        value={epdsAnswers[q.id] ?? 0}
+                        onChange={(e) =>
+                          setEpdsAnswers((prev) => ({ ...prev, [q.id]: Number(e.target.value) }))
+                        }
+                        className="w-full p-2 rounded-xl border-2 border-[#144272] bg-white text-xs font-bold text-[#0A2647]"
+                      >
+                        {q.options.map((opt) => (
+                          <option key={opt.points} value={opt.points}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-3.5 rounded-xl vitta-pearl-blue-subbar border-2 border-[#144272] space-y-1">
+                  <span className="font-bold text-[#0A2647] block">
+                    Interpretação EPDS ({epdsScore} pontos de 30): {getEpdsClassification(epdsScore).label}
+                  </span>
+                  <span className="text-[11px] text-[#144272] font-medium block">
+                    <strong>Conduta de Enfermagem Obstétrica Sugerida:</strong> {getEpdsClassification(epdsScore).conduct}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* =================================================================== */}
             {/* SCALE 1: ESCALA DE COMA DE GLASGOW (ECG-P)                          */}
