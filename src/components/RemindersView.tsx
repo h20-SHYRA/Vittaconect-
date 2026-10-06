@@ -26,9 +26,11 @@ import {
 import { MedicalReminder, ReminderCategory } from '../types';
 import { INITIAL_REMINDERS, INITIAL_WOMAN_REMINDERS } from '../data/mockData';
 import { usePatient } from '../context/PatientContext';
+import { useFeedback } from '../context/FeedbackContext';
 
 export const RemindersView: React.FC = () => {
   const { patient } = usePatient();
+  const { showToast } = useFeedback();
   const isWomanMode = patient?.userMode === 'saude_feminina';
   const storageKey = isWomanMode ? 'vittaconect_reminders_woman_v1' : 'vittaconect_reminders_pregnant_v1';
   const defaultList = isWomanMode ? INITIAL_WOMAN_REMINDERS : INITIAL_REMINDERS;
@@ -148,9 +150,12 @@ export const RemindersView: React.FC = () => {
 
   // Delete custom reminder
   const handleDeleteReminder = (id: string) => {
-    if (window.confirm('Deseja realmente remover esta orientação médica?')) {
-      setReminders((prev) => prev.filter((r) => r.id !== id));
-    }
+    setReminders((prev) => prev.filter((r) => r.id !== id));
+    showToast({
+      title: 'Orientação Removida',
+      description: 'O lembrete personalizado foi removido da sua lista.',
+      tone: 'info',
+    });
   };
 
   // Copy Reminder to Clipboard / WhatsApp
@@ -165,18 +170,16 @@ export const RemindersView: React.FC = () => {
     navigator.clipboard.writeText(textToCopy);
     setCopiedId(reminder.id);
     setTimeout(() => setCopiedId(null), 2500);
+    showToast({
+      title: 'Orientação Copiada',
+      description: 'O texto foi copiado para sua área de transferência.',
+      tone: 'success',
+    });
   };
 
-  // Share directly via WhatsApp
+  // Share directly via Clipboard / WhatsApp message
   const handleShareWhatsApp = (reminder: MedicalReminder) => {
-    const checklistText = reminder.checklist
-      ? '\n\nTarefas:\n' + reminder.checklist.map((c) => (c.completed ? '✅ ' : '⬜ ') + c.text).join('\n')
-      : '';
-    const medText = reminder.medicationSchedule ? `\n⏰ Horário: ${reminder.medicationSchedule}` : '';
-
-    const text = `📌 *Orientações da Consulta - Vittaconect*\n*${reminder.title}*\n👨‍⚕️ *Profissional:* ${reminder.professionalName}\n📅 *Data:* ${reminder.date.split('-').reverse().join('/')}\n\n${reminder.content}${medText}${checklistText}`;
-
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+    handleCopyReminder(reminder);
   };
 
   // Filter items

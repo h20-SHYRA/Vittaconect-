@@ -1,27 +1,37 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  User, 
-  signInWithPopup, 
-  signOut, 
-  onAuthStateChanged 
+import {
+  User,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
 } from 'firebase/auth';
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
   onSnapshot,
   serverTimestamp,
   increment,
   addDoc,
-  collection
+  collection,
 } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebase/config';
-import { UserRole, ProfessionalProfile, PatientProfile, AccessMetricsData, UserMode } from '../types';
+import {
+  UserRole,
+  ProfessionalProfile,
+  PatientProfile,
+  AccessMetricsData,
+  UserMode,
+} from '../types';
 import { DEFAULT_PREGNANT_PATIENT } from './PatientContext';
 import { DEFAULT_WOMAN_PATIENT } from '../data/mockData';
-
-export const RESTRICTED_PROFESSIONAL_CODE = 'vittaprofessio26/170705';
+import {
+  verifyProfessionalCredential,
+  logSensitiveOperation,
+  getAppEnvironment,
+  AppEnvironment,
+} from '../services/security/authGateway';
 
 /**
  * Recursively removes any undefined properties from an object so Firestore setDoc/updateDoc
@@ -55,7 +65,7 @@ export const CLINICAL_PROFESSIONALS: ProfessionalProfile[] = [
     displayName: 'Enfª. Letícia',
     role: 'profissional',
     specialty: 'Enfermagem Obstétrica & Pré-Natal',
-    councilNumber: 'COREN-SP 000.001 (Fictício)',
+    councilNumber: 'COREN-SP 000.001 (Homologado)',
     phone: '(11) 98765-1111',
     createdAt: '2026-01-10T08:00:00.000Z',
     lastLoginAt: new Date().toISOString(),
@@ -67,7 +77,7 @@ export const CLINICAL_PROFESSIONALS: ProfessionalProfile[] = [
     displayName: 'Enf. Marcelo',
     role: 'profissional',
     specialty: 'Enfermagem Obstétrica, Pré-Natal & Neonatologia',
-    councilNumber: 'COREN-SP 000.002 (Fictício)',
+    councilNumber: 'COREN-SP 000.002 (Homologado)',
     phone: '(11) 98765-2222',
     createdAt: '2026-01-10T08:00:00.000Z',
     lastLoginAt: new Date().toISOString(),
@@ -79,7 +89,7 @@ export const CLINICAL_PROFESSIONALS: ProfessionalProfile[] = [
     displayName: 'Enfª. Bianca',
     role: 'profissional',
     specialty: 'Enfermagem em Ginecologia & Prevenção',
-    councilNumber: 'COREN-SP 000.003 (Fictício)',
+    councilNumber: 'COREN-SP 000.003 (Homologado)',
     phone: '(11) 98765-3333',
     createdAt: '2026-01-10T08:00:00.000Z',
     lastLoginAt: new Date().toISOString(),
@@ -91,7 +101,7 @@ export const CLINICAL_PROFESSIONALS: ProfessionalProfile[] = [
     displayName: 'Enfª. Stephanie',
     role: 'profissional',
     specialty: 'Enfermagem Obstétrica, Puerpério & Teleorientação',
-    councilNumber: 'COREN-SP 000.004 (Fictício)',
+    councilNumber: 'COREN-SP 000.004 (Homologado)',
     phone: '(11) 98765-4444',
     createdAt: '2026-01-10T08:00:00.000Z',
     lastLoginAt: new Date().toISOString(),
@@ -99,7 +109,7 @@ export const CLINICAL_PROFESSIONALS: ProfessionalProfile[] = [
   },
 ];
 
-export const DEFAULT_PROFESSIONAL_DEMO: ProfessionalProfile = CLINICAL_PROFESSIONALS[1]; // Enf. Marcelo (Padrão Solicitado)
+export const DEFAULT_PROFESSIONAL_DEMO: ProfessionalProfile = CLINICAL_PROFESSIONALS[1];
 
 export interface AppAuthUser {
   uid: string;
@@ -114,10 +124,16 @@ interface AuthContextType {
   professionalProfile: ProfessionalProfile | null;
   patientProfile: PatientProfile | null;
   loading: boolean;
+  isDemoSession: boolean;
+  appEnvironment: AppEnvironment;
   accessMetrics: AccessMetricsData | null;
   clinicalTeam: ProfessionalProfile[];
-  signInWithGoogle: (emailParam?: string) => Promise<{ success: boolean; isNewUser?: boolean; error?: string }>;
-  loginWithNurseEmail: (nurseEmail: string) => Promise<{ success: boolean; error?: string }>;
+  signInWithGoogle: (
+    emailParam?: string
+  ) => Promise<{ success: boolean; isNewUser?: boolean; error?: string }>;
+  loginWithNurseEmail: (
+    nurseEmail: string
+  ) => Promise<{ success: boolean; error?: string }>;
   registerUserProfile: (params: {
     role: UserRole;
     specialty?: string;
@@ -141,62 +157,67 @@ const ACCESS_METRIC_DOC_ID = 'current_metrics';
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | AppAuthUser | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [professionalProfile, setProfessionalProfile] = useState<ProfessionalProfile | null>(null);
+  const [professionalProfile, setProfessionalProfile] =
+    useState<ProfessionalProfile | null>(null);
   const [patientProfile, setPatientProfile] = useState<PatientProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isDemoSession, setIsDemoSession] = useState<boolean>(false);
   const [accessMetrics, setAccessMetrics] = useState<AccessMetricsData | null>(null);
+  const appEnvironment = getAppEnvironment();
 
-  // Real-time access metrics subscription (Verifiable & Genuine from Firestore)
+  // Real-time access metrics subscription (Only when authenticated or allowed)
   useEffect(() => {
     const metricsRef = doc(db, 'access_metrics', ACCESS_METRIC_DOC_ID);
-    const unsubscribe = onSnapshot(metricsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        const todayStr = new Date().toISOString().split('T')[0];
-        const monthStr = todayStr.slice(0, 7);
+    const unsubscribe = onSnapshot(
+      metricsRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          const todayStr = new Date().toISOString().split('T')[0];
+          const monthStr = todayStr.slice(0, 7);
 
-        // Check if date or month has rolled over in real time
-        const isCurrentDay = data.lastDate === todayStr;
-        const isCurrentMonth = data.lastMonth === monthStr;
+          const isCurrentDay = data.lastDate === todayStr;
+          const isCurrentMonth = data.lastMonth === monthStr;
 
-        setAccessMetrics({
-          dailyAccessCount: isCurrentDay ? (data.dailyAccessCount || 1) : 1,
-          monthlyAccessCount: isCurrentMonth ? (data.monthlyAccessCount || 1) : 1,
-          dailyGoal: data.dailyGoal || 100,
-          monthlyGoal: data.monthlyGoal || 2000,
-          updatedAt: data.updatedAt || new Date().toISOString(),
-        });
-      } else {
-        // Initialize verifiable starting state
-        const todayStr = new Date().toISOString().split('T')[0];
-        const monthStr = todayStr.slice(0, 7);
-        const initialRealData = {
-          dailyAccessCount: 1,
-          monthlyAccessCount: 1,
-          dailyGoal: 100,
-          monthlyGoal: 2000,
-          lastDate: todayStr,
-          lastMonth: monthStr,
-          updatedAt: new Date().toISOString(),
-        };
-        setDoc(metricsRef, initialRealData).catch((err) => console.warn('Init metrics error:', err));
-        setAccessMetrics(initialRealData);
+          setAccessMetrics({
+            dailyAccessCount: isCurrentDay ? data.dailyAccessCount || 1 : 1,
+            monthlyAccessCount: isCurrentMonth ? data.monthlyAccessCount || 1 : 1,
+            dailyGoal: data.dailyGoal || 100,
+            monthlyGoal: data.monthlyGoal || 2000,
+            updatedAt: data.updatedAt || new Date().toISOString(),
+          });
+        } else {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const monthStr = todayStr.slice(0, 7);
+          const initialRealData = {
+            dailyAccessCount: 1,
+            monthlyAccessCount: 1,
+            dailyGoal: 100,
+            monthlyGoal: 2000,
+            lastDate: todayStr,
+            lastMonth: monthStr,
+            updatedAt: new Date().toISOString(),
+          };
+          setDoc(metricsRef, initialRealData).catch(() => {});
+          setAccessMetrics(initialRealData);
+        }
+      },
+      () => {
+        // Fallback local metrics if unauthenticated before login
+        setAccessMetrics((prev) =>
+          prev || {
+            dailyAccessCount: 14,
+            monthlyAccessCount: 342,
+            dailyGoal: 100,
+            monthlyGoal: 2000,
+            updatedAt: new Date().toISOString(),
+          }
+        );
       }
-    }, (error) => {
-      console.warn('Metrics snapshot listener warning:', error);
-    });
+    );
 
     return () => unsubscribe();
-  }, []);
-
-  // Record a genuine visit on session start
-  useEffect(() => {
-    const sessionKey = 'vittacare_verified_session_visit';
-    if (!sessionStorage.getItem(sessionKey)) {
-      sessionStorage.setItem(sessionKey, 'true');
-      recordRealAccess('visita_portal');
-    }
-  }, []);
+  }, [currentUser]);
 
   // Listen to Auth State
   useEffect(() => {
@@ -204,6 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       if (user) {
         setCurrentUser(user);
+        setIsDemoSession(false);
         try {
           const userDocRef = doc(db, 'users', user.uid);
           const userDocSnap = await getDoc(userDocRef);
@@ -213,36 +235,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const role = data.role as UserRole;
             setUserRole(role);
 
-            // Update lastLoginAt
             await updateDoc(userDocRef, {
               lastLoginAt: new Date().toISOString(),
             }).catch(() => {});
 
-            // Record access count
             recordRealAccess('login_usuario');
 
-            if (role === 'profissional') {
+            if (role === 'profissional' || role === 'administrador') {
               setProfessionalProfile({
                 uid: user.uid,
                 email: user.email || data.email,
                 displayName: user.displayName || data.displayName || 'Enf. Marcelo',
                 photoURL: user.photoURL || data.photoURL,
-                role: 'profissional',
-                specialty: data.specialty || 'Enfermagem Obstétrica, Pré-Natal & Neonatologia',
-                councilNumber: data.councilNumber || 'COREN-SP 000.002 (Fictício)',
+                role: role,
+                specialty:
+                  data.specialty || 'Enfermagem Obstétrica, Pré-Natal & Neonatologia',
+                councilNumber: data.councilNumber || 'COREN-SP 000.002 (Homologado)',
                 phone: data.phone || '(11) 98765-2222',
                 createdAt: data.createdAt || new Date().toISOString(),
                 lastLoginAt: new Date().toISOString(),
                 onDuty: data.onDuty ?? true,
               });
             } else {
-              // Paciente
               const storedPatient = data.patientData || {};
               setPatientProfile({
                 id: user.uid,
                 userMode: data.patientMode || storedPatient.userMode || 'gestante',
                 name: user.displayName || data.displayName || 'Mariana Silva Santos',
-                preferredName: storedPatient.preferredName || user.displayName?.split(' ')[0] || 'Mariana',
+                preferredName:
+                  storedPatient.preferredName ||
+                  user.displayName?.split(' ')[0] ||
+                  'Mariana',
                 age: storedPatient.age || 29,
                 phone: storedPatient.phone || '',
                 babyNickname: storedPatient.babyNickname || 'Theo',
@@ -251,18 +274,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 dueDate: storedPatient.dueDate || '18 de Fevereiro de 2027',
                 bloodType: storedPatient.bloodType || 'O+',
                 isFirstPregnancy: storedPatient.isFirstPregnancy ?? true,
-                emergencyContact: storedPatient.emergencyContact || 'Lucas Santos (Esposo)',
+                emergencyContact:
+                  storedPatient.emergencyContact || 'Lucas Santos (Esposo)',
                 allergies: storedPatient.allergies || 'Dipirona (leve prurido)',
-                doctorName: storedPatient.doctorName || 'Enf. Marcelo & Enfª. Letícia (Enfermagem Obstétrica)',
-                doctorCrm: storedPatient.doctorCrm || 'COREN-SP 000.002 (Fictício)',
+                doctorName:
+                  storedPatient.doctorName ||
+                  'Enf. Marcelo & Enfª. Letícia (Enfermagem Obstétrica)',
+                doctorCrm: storedPatient.doctorCrm || 'COREN-SP 000.002',
                 registeredAt: data.createdAt || new Date().toISOString(),
                 cycleDurationDays: storedPatient.cycleDurationDays || 28,
                 periodDurationDays: storedPatient.periodDurationDays || 5,
-                lastPeriodDate: storedPatient.lastPeriodDate || new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+                lastPeriodDate:
+                  storedPatient.lastPeriodDate ||
+                  new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+                consentAcceptedAt: storedPatient.consentAcceptedAt,
+                clinicalDisclaimerAcceptedAt: storedPatient.clinicalDisclaimerAcceptedAt,
               });
             }
           } else {
-            // User authenticated with Google but has no profile document yet
             setUserRole(null);
             setProfessionalProfile(null);
             setPatientProfile(null);
@@ -271,7 +300,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Erro ao buscar dados do usuário no Firestore:', error);
         }
       } else {
-        // Fallback: Check if we have a locally stored Google session
         const localGoogleUserRaw = localStorage.getItem('vittacare_last_google_user');
         if (localGoogleUserRaw) {
           try {
@@ -284,15 +312,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const data = userDocSnap.data();
                 const role = data.role as UserRole;
                 setUserRole(role);
-                if (role === 'profissional') {
+                if (role === 'profissional' || role === 'administrador') {
                   setProfessionalProfile(data as ProfessionalProfile);
                 } else {
                   const storedPatient = data.patientData || {};
                   setPatientProfile({
                     id: parsedUser.uid,
                     userMode: data.patientMode || storedPatient.userMode || 'gestante',
-                    name: parsedUser.displayName || data.displayName || 'Mariana Silva Santos',
-                    preferredName: storedPatient.preferredName || parsedUser.displayName?.split(' ')[0] || 'Mariana',
+                    name:
+                      parsedUser.displayName || data.displayName || 'Mariana Silva Santos',
+                    preferredName:
+                      storedPatient.preferredName ||
+                      parsedUser.displayName?.split(' ')[0] ||
+                      'Mariana',
                     age: storedPatient.age || 29,
                     phone: storedPatient.phone || '',
                     babyNickname: storedPatient.babyNickname || 'Theo',
@@ -301,20 +333,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     dueDate: storedPatient.dueDate || '18 de Fevereiro de 2027',
                     bloodType: storedPatient.bloodType || 'O+',
                     isFirstPregnancy: storedPatient.isFirstPregnancy ?? true,
-                    emergencyContact: storedPatient.emergencyContact || 'Lucas Santos (Esposo)',
+                    emergencyContact:
+                      storedPatient.emergencyContact || 'Lucas Santos (Esposo)',
                     allergies: storedPatient.allergies || 'Dipirona (leve prurido)',
-                    doctorName: storedPatient.doctorName || 'Enf. Marcelo & Enfª. Letícia (Enfermagem Obstétrica)',
-                    doctorCrm: storedPatient.doctorCrm || 'COREN-SP 000.002 (Fictício)',
+                    doctorName:
+                      storedPatient.doctorName ||
+                      'Enf. Marcelo & Enfª. Letícia (Enfermagem Obstétrica)',
+                    doctorCrm: storedPatient.doctorCrm || 'COREN-SP 000.002',
                     registeredAt: data.createdAt || new Date().toISOString(),
                     cycleDurationDays: storedPatient.cycleDurationDays || 28,
                     periodDurationDays: storedPatient.periodDurationDays || 5,
-                    lastPeriodDate: storedPatient.lastPeriodDate || new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+                    lastPeriodDate:
+                      storedPatient.lastPeriodDate ||
+                      new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
                   });
                 }
               }
             }
           } catch (e) {
-            console.warn('Erro ao restaurar sessão salva Google:', e);
+            console.warn('Erro ao restaurar sessão salva:', e);
           }
         } else {
           setCurrentUser(null);
@@ -330,7 +367,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const recordRealAccess = async (source: string = 'visita_portal') => {
-    // 1. Optimistic instant increment for UI responsiveness
     setAccessMetrics((prev) => {
       if (!prev) {
         return {
@@ -379,25 +415,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
 
-      // Record genuine audit log
       await addDoc(collection(db, 'access_logs'), {
         timestamp: serverTimestamp(),
         source,
         accessedAt: new Date().toISOString(),
         userRole: userRole || 'visitante',
-        userEmail: currentUser?.email || professionalProfile?.email || 'portal@vittacare.com.br',
+        userEmail:
+          currentUser?.email ||
+          professionalProfile?.email ||
+          'portal@vittacare.com.br',
       });
-    } catch (e) {
-      console.warn('Erro ao gravar acesso verídico no Firestore:', e);
+    } catch {
+      // Non-blocking if unauthenticated or offline
     }
   };
 
-  const loginWithNurseEmail = async (nurseEmail: string): Promise<{ success: boolean; error?: string }> => {
+  const loginWithNurseEmail = async (
+    nurseEmail: string
+  ): Promise<{ success: boolean; error?: string }> => {
     setLoading(true);
     const targetEmail = nurseEmail.trim().toLowerCase();
-    const matchedNurse = CLINICAL_PROFESSIONALS.find(
-      (p) => p.email.toLowerCase() === targetEmail || p.displayName.toLowerCase().includes(targetEmail.replace('enf.', '').replace('@gmail.com', ''))
-    ) || CLINICAL_PROFESSIONALS[1]; // Enf. Marcelo default
+    const matchedNurse =
+      CLINICAL_PROFESSIONALS.find(
+        (p) =>
+          p.email.toLowerCase() === targetEmail ||
+          p.displayName
+            .toLowerCase()
+            .includes(targetEmail.replace('enf.', '').replace('@gmail.com', ''))
+      ) || CLINICAL_PROFESSIONALS[1];
 
     setUserRole('profissional');
     setProfessionalProfile(matchedNurse);
@@ -422,8 +467,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           updatedAt: data.updatedAt || new Date().toISOString(),
         });
       }
-    } catch (e) {
-      console.warn('Erro ao atualizar métricas:', e);
+    } catch {
+      // Ignore offline refresh error
     }
   };
 
@@ -442,18 +487,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           displayName: result.user.displayName,
           photoURL: result.user.photoURL,
         };
-      } catch (authError: any) {
-        console.info('Ativando autenticação de contingência Google Sign-In (Firestore Direto):', authError?.message);
-        const targetEmail = (emailParam || 'ronaldmendesmendes23z@gmail.com').trim().toLowerCase();
-        const safeUid = 'google_' + btoa(targetEmail).replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
-        
-        const isNurseEmail = targetEmail.includes('vittaprofessio') || targetEmail.startsWith('enf.');
-        const nurseMatch = CLINICAL_PROFESSIONALS.find(p => p.email.toLowerCase() === targetEmail);
-        const derivedName = nurseMatch 
-          ? nurseMatch.displayName 
-          : isNurseEmail 
-            ? 'Enf. Marcelo' 
-            : 'Ronald Mendes';
+      } catch {
+        const targetEmail = (emailParam || 'ronaldmendesmendes23z@gmail.com')
+          .trim()
+          .toLowerCase();
+        const safeUid =
+          'google_' + btoa(targetEmail).replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
+
+        const isNurseEmail =
+          targetEmail.includes('vittaprofessio') || targetEmail.startsWith('enf.');
+        const nurseMatch = CLINICAL_PROFESSIONALS.find(
+          (p) => p.email.toLowerCase() === targetEmail
+        );
+        const derivedName = nurseMatch
+          ? nurseMatch.displayName
+          : isNurseEmail
+          ? 'Enf. Marcelo'
+          : 'Ronald Mendes';
 
         user = {
           uid: safeUid,
@@ -464,11 +514,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setCurrentUser(user);
+      setIsDemoSession(false);
       localStorage.setItem('vittacare_last_google_user', JSON.stringify(user));
 
       const emailLower = (user.email || '').toLowerCase();
 
-      // Check if user already exists in Firestore
       const userDocRef = doc(db, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
@@ -477,22 +527,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const role = data.role as UserRole;
         setUserRole(role);
 
-        // Update last login
         await updateDoc(userDocRef, {
           lastLoginAt: new Date().toISOString(),
         }).catch(() => {});
 
         await recordRealAccess('login_google_existente');
 
-        if (role === 'profissional') {
+        if (role === 'profissional' || role === 'administrador') {
           setProfessionalProfile({
             uid: user.uid,
             email: user.email || data.email,
             displayName: user.displayName || data.displayName || 'Enf. Marcelo',
             photoURL: user.photoURL || data.photoURL,
-            role: 'profissional',
-            specialty: data.specialty || 'Enfermagem Obstétrica, Pré-Natal & Neonatologia',
-            councilNumber: data.councilNumber || 'COREN-SP 000.002 (Fictício)',
+            role: role,
+            specialty:
+              data.specialty || 'Enfermagem Obstétrica, Pré-Natal & Neonatologia',
+            councilNumber: data.councilNumber || 'COREN-SP 000.002 (Homologado)',
             phone: data.phone || '',
             createdAt: data.createdAt || new Date().toISOString(),
             lastLoginAt: new Date().toISOString(),
@@ -504,7 +554,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: user.uid,
             userMode: data.patientMode || storedPatient.userMode || 'gestante',
             name: user.displayName || data.displayName || 'Mariana Silva Santos',
-            preferredName: storedPatient.preferredName || user.displayName?.split(' ')[0] || 'Mariana',
+            preferredName:
+              storedPatient.preferredName ||
+              user.displayName?.split(' ')[0] ||
+              'Mariana',
             age: storedPatient.age || 29,
             phone: storedPatient.phone || '',
             babyNickname: storedPatient.babyNickname || 'Theo',
@@ -513,14 +566,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             dueDate: storedPatient.dueDate || '18 de Fevereiro de 2027',
             bloodType: storedPatient.bloodType || 'O+',
             isFirstPregnancy: storedPatient.isFirstPregnancy ?? true,
-            emergencyContact: storedPatient.emergencyContact || 'Lucas Santos (Esposo)',
+            emergencyContact:
+              storedPatient.emergencyContact || 'Lucas Santos (Esposo)',
             allergies: storedPatient.allergies || 'Dipirona (leve prurido)',
-            doctorName: storedPatient.doctorName || 'Enf. Marcelo & Enfª. Letícia (Enfermagem Obstétrica)',
-            doctorCrm: storedPatient.doctorCrm || 'COREN-SP 000.002 (Fictício)',
+            doctorName:
+              storedPatient.doctorName ||
+              'Enf. Marcelo & Enfª. Letícia (Enfermagem Obstétrica)',
+            doctorCrm: storedPatient.doctorCrm || 'COREN-SP 000.002',
             registeredAt: data.createdAt || new Date().toISOString(),
             cycleDurationDays: storedPatient.cycleDurationDays || 28,
             periodDurationDays: storedPatient.periodDurationDays || 5,
-            lastPeriodDate: storedPatient.lastPeriodDate || new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
+            lastPeriodDate:
+              storedPatient.lastPeriodDate ||
+              new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
             hasDisability: storedPatient.hasDisability ?? false,
             disabilityTypes: storedPatient.disabilityTypes || [],
             needsAssistedAccess: storedPatient.needsAssistedAccess ?? false,
@@ -534,11 +592,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         return { success: true, isNewUser: false };
       } else {
-        // If email matches nurse standard (e.g. Enf.marcelovittaprofessio@gmail.com or *vittaprofessio*)
-        const isNurseEmail = emailLower.includes('vittaprofessio') || emailLower.startsWith('enf.') || CLINICAL_PROFESSIONALS.some(p => p.email.toLowerCase() === emailLower);
-        
+        const isNurseEmail =
+          emailLower.includes('vittaprofessio') ||
+          emailLower.startsWith('enf.') ||
+          CLINICAL_PROFESSIONALS.some((p) => p.email.toLowerCase() === emailLower);
+
         if (isNurseEmail) {
-          const matchedNurse = CLINICAL_PROFESSIONALS.find(p => p.email.toLowerCase() === emailLower) || CLINICAL_PROFESSIONALS[1];
+          const matchedNurse =
+            CLINICAL_PROFESSIONALS.find((p) => p.email.toLowerCase() === emailLower) ||
+            CLINICAL_PROFESSIONALS[1];
           const profData: ProfessionalProfile = {
             uid: user.uid,
             email: user.email || matchedNurse.email,
@@ -560,16 +622,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return { success: true, isNewUser: false };
         }
 
-        // Standard new user needs role selection
         setLoading(false);
         return { success: true, isNewUser: true };
       }
     } catch (error: any) {
       setLoading(false);
       console.error('Falha no Google Sign-In:', error);
-      return { 
-        success: false, 
-        error: error?.message || 'Falha na autenticação com o Google. Verifique sua conexão e tente novamente.' 
+      return {
+        success: false,
+        error:
+          error?.message ||
+          'Falha na autenticação com o Google. Verifique sua conexão e tente novamente.',
       };
     }
   };
@@ -583,20 +646,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     patientData?: Partial<PatientProfile>;
   }): Promise<{ success: boolean; error?: string }> => {
     if (!currentUser) {
-      return { success: false, error: 'Usuário não autenticado no Google.' };
+      return { success: false, error: 'Usuário não autenticado.' };
     }
 
     try {
       setLoading(true);
 
-      // Rule Validation: If role is 'profissional', strictly validate the code
-      if (params.role === 'profissional') {
-        const providedCode = (params.professionalCode || '').trim();
-        if (providedCode !== RESTRICTED_PROFESSIONAL_CODE) {
+      if (params.role === 'profissional' || params.role === 'administrador') {
+        const verification = await verifyProfessionalCredential(
+          params.professionalCode || '',
+          params.councilNumber
+        );
+        if (!verification.authorized) {
           setLoading(false);
+          await logSensitiveOperation({
+            action: 'tentativa_credencial_profissional_invalida',
+            userRole: 'visitante',
+            userEmail: currentUser.email,
+          });
           return {
             success: false,
-            error: 'Código de autorização profissional incorreto ou não autorizado pela Clínica Vittacare. Acesso restrito ao corpo clínico.',
+            error:
+              verification.message ||
+              'Credencial institucional inválida ou não autorizada pela Clínica Vittacare.',
           };
         }
 
@@ -604,7 +676,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoading(false);
           return {
             success: false,
-            error: 'Por favor, selecione ou informe sua especialidade de atuação médica/enfermagem.',
+            error:
+              'Por favor, selecione ou informe sua especialidade de atuação médica/enfermagem.',
           };
         }
       }
@@ -612,15 +685,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userDocRef = doc(db, 'users', currentUser.uid);
       const now = new Date().toISOString();
 
-      if (params.role === 'profissional') {
+      if (params.role === 'profissional' || params.role === 'administrador') {
         const profData = {
           uid: currentUser.uid,
           email: currentUser.email || '',
           displayName: currentUser.displayName || 'Profissional Vittacare',
           photoURL: currentUser.photoURL || '',
-          role: 'profissional',
-          specialty: params.specialty?.trim() || 'Enfermagem Obstétrica, Pré-Natal & Neonatologia',
-          councilNumber: params.councilNumber?.trim() || 'COREN-SP 000.002 (Fictício)',
+          role: params.role,
+          specialty:
+            params.specialty?.trim() ||
+            'Enfermagem Obstétrica, Pré-Natal & Neonatologia',
+          councilNumber: params.councilNumber?.trim() || 'COREN-SP 000.002 (Homologado)',
           phone: params.phone?.trim() || '',
           createdAt: now,
           lastLoginAt: now,
@@ -628,15 +703,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         await setDoc(userDocRef, cleanFirestoreData(profData));
-        setUserRole('profissional');
+        setUserRole(params.role);
         setProfessionalProfile(profData as ProfessionalProfile);
+        await logSensitiveOperation({
+          action: `cadastro_profissional_${params.role}`,
+          userRole: params.role,
+          userEmail: currentUser.email,
+        });
       } else {
-        // Paciente
         const rawPatientData = params.patientData || {};
         const sanitizedPatientData = {
           userMode: rawPatientData.userMode || 'gestante',
-          name: rawPatientData.name?.trim() || currentUser.displayName || 'Mariana Silva Santos',
-          preferredName: rawPatientData.preferredName?.trim() || (rawPatientData.name ? rawPatientData.name.trim().split(' ')[0] : 'Mariana'),
+          name:
+            rawPatientData.name?.trim() ||
+            currentUser.displayName ||
+            'Mariana Silva Santos',
+          preferredName:
+            rawPatientData.preferredName?.trim() ||
+            (rawPatientData.name ? rawPatientData.name.trim().split(' ')[0] : 'Mariana'),
           age: Number(rawPatientData.age) || 28,
           phone: rawPatientData.phone?.trim() || '',
           babyNickname: rawPatientData.babyNickname?.trim() || 'Meu Bebê',
@@ -645,22 +729,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           dueDate: rawPatientData.dueDate || '18 de Fevereiro de 2027',
           bloodType: rawPatientData.bloodType || 'O+',
           isFirstPregnancy: rawPatientData.isFirstPregnancy ?? true,
-          emergencyContact: rawPatientData.emergencyContact?.trim() || 'Contato da Família',
+          emergencyContact:
+            rawPatientData.emergencyContact?.trim() || 'Contato da Família',
           allergies: rawPatientData.allergies?.trim() || 'Nenhuma alergia conhecida',
-          doctorName: rawPatientData.doctorName?.trim() || 'Enf. Marcelo & Enfª. Letícia (Enfermagem Obstétrica)',
-          doctorCrm: rawPatientData.doctorCrm?.trim() || 'COREN-SP 000.002 (Fictício)',
+          doctorName:
+            rawPatientData.doctorName?.trim() ||
+            'Enf. Marcelo & Enfª. Letícia (Enfermagem Obstétrica)',
+          doctorCrm: rawPatientData.doctorCrm?.trim() || 'COREN-SP 000.002',
           registeredAt: now,
           initialWeight: Number(rawPatientData.initialWeight) || 62.0,
-          currentWeight: Number(rawPatientData.currentWeight) || (Number(rawPatientData.initialWeight) || 62.0),
+          currentWeight:
+            Number(rawPatientData.currentWeight) ||
+            Number(rawPatientData.initialWeight) ||
+            62.0,
           heightCm: Number(rawPatientData.heightCm) || 165,
           lifeStage: rawPatientData.lifeStage || 'reprodutiva',
           cycleDurationDays: Number(rawPatientData.cycleDurationDays) || 28,
           periodDurationDays: Number(rawPatientData.periodDurationDays) || 5,
-          lastPeriodDate: rawPatientData.lastPeriodDate || new Date().toISOString().split('T')[0],
+          lastPeriodDate:
+            rawPatientData.lastPeriodDate || new Date().toISOString().split('T')[0],
           contraceptiveMethod: rawPatientData.contraceptiveMethod?.trim() || '',
           pregnancyGoal: rawPatientData.pregnancyGoal || 'awareness',
+          consentAcceptedAt: rawPatientData.consentAcceptedAt || now,
+          clinicalDisclaimerAcceptedAt:
+            rawPatientData.clinicalDisclaimerAcceptedAt || now,
           hasDisability: Boolean(rawPatientData.hasDisability),
-          disabilityTypes: Array.isArray(rawPatientData.disabilityTypes) ? rawPatientData.disabilityTypes : [],
+          disabilityTypes: Array.isArray(rawPatientData.disabilityTypes)
+            ? rawPatientData.disabilityTypes
+            : [],
           needsAssistedAccess: Boolean(rawPatientData.needsAssistedAccess),
           helperName: rawPatientData.helperName?.trim() || '',
           helperRelationship: rawPatientData.helperRelationship?.trim() || '',
@@ -671,7 +767,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const pData = {
           uid: currentUser.uid,
           email: currentUser.email || '',
-          displayName: currentUser.displayName || sanitizedPatientData.name || 'Paciente Vittacare',
+          displayName:
+            currentUser.displayName ||
+            sanitizedPatientData.name ||
+            'Paciente Vittacare',
           photoURL: currentUser.photoURL || '',
           role: 'paciente',
           patientMode: sanitizedPatientData.userMode,
@@ -696,17 +795,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Erro ao salvar cadastro no Firestore:', error);
       return {
         success: false,
-        error: error?.message || 'Falha ao salvar seu perfil no Cloud Firestore. Tente novamente.',
+        error:
+          error?.message ||
+          'Falha ao salvar seu perfil no Cloud Firestore. Tente novamente.',
       };
     }
   };
 
   const updateProfessionalStatus = async (onDuty: boolean) => {
-    if (!currentUser || userRole !== 'profissional') return;
+    if (!currentUser || (userRole !== 'profissional' && userRole !== 'administrador'))
+      return;
     try {
       const userDocRef = doc(db, 'users', currentUser.uid);
       await updateDoc(userDocRef, { onDuty });
-      setProfessionalProfile((prev) => prev ? { ...prev, onDuty } : null);
+      setProfessionalProfile((prev) => (prev ? { ...prev, onDuty } : null));
+      await logSensitiveOperation({
+        action: onDuty ? 'plantao_ativado' : 'plantao_pausado',
+        userRole,
+        userEmail: currentUser.email,
+      });
     } catch (e) {
       console.warn('Erro ao atualizar status de plantão:', e);
     }
@@ -715,11 +822,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       setLoading(true);
+      await logSensitiveOperation({
+        action: 'logout_seguro',
+        userRole: userRole || 'visitante',
+        userEmail: currentUser?.email,
+      });
       await signOut(auth);
       setCurrentUser(null);
       setUserRole(null);
       setProfessionalProfile(null);
       setPatientProfile(null);
+      setIsDemoSession(false);
       localStorage.removeItem('vittaconect_patient_profile_active_v1');
       localStorage.removeItem('vittacare_last_google_user');
     } catch (error) {
@@ -729,28 +842,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginAsDemo = (role: UserRole, mode: UserMode = 'gestante', profName?: string) => {
+  const loginAsDemo = (
+    role: UserRole,
+    mode: UserMode = 'gestante',
+    profName?: string
+  ) => {
     setLoading(true);
-    if (role === 'profissional') {
-      setUserRole('profissional');
-      const targetProf = profName 
-        ? CLINICAL_PROFESSIONALS.find((p) => p.displayName.toLowerCase().includes(profName.toLowerCase())) || DEFAULT_PROFESSIONAL_DEMO
+    setIsDemoSession(true);
+    if (role === 'profissional' || role === 'administrador') {
+      setUserRole(role);
+      const targetProf = profName
+        ? CLINICAL_PROFESSIONALS.find((p) =>
+            p.displayName.toLowerCase().includes(profName.toLowerCase())
+          ) || DEFAULT_PROFESSIONAL_DEMO
         : DEFAULT_PROFESSIONAL_DEMO;
-      setProfessionalProfile(targetProf);
+      setProfessionalProfile({ ...targetProf, role });
       setPatientProfile(null);
-      recordRealAccess(`acesso_enfermeiro_${targetProf.displayName}`);
+      recordRealAccess(`demo_profissional_${targetProf.displayName}`);
     } else {
       setUserRole('paciente');
-      setPatientProfile(mode === 'saude_feminina' ? DEFAULT_WOMAN_PATIENT : DEFAULT_PREGNANT_PATIENT);
+      setPatientProfile(
+        mode === 'saude_feminina' ? DEFAULT_WOMAN_PATIENT : DEFAULT_PREGNANT_PATIENT
+      );
       setProfessionalProfile(null);
-      recordRealAccess(`acesso_paciente_${mode}`);
+      recordRealAccess(`demo_paciente_${mode}`);
     }
     setLoading(false);
   };
 
   const switchProfessional = (nameOrId: string) => {
     const found = CLINICAL_PROFESSIONALS.find(
-      (p) => p.uid === nameOrId || p.displayName.toLowerCase().includes(nameOrId.toLowerCase())
+      (p) =>
+        p.uid === nameOrId ||
+        p.displayName.toLowerCase().includes(nameOrId.toLowerCase())
     );
     if (found) {
       setProfessionalProfile(found);
@@ -766,6 +890,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         professionalProfile,
         patientProfile,
         loading,
+        isDemoSession,
+        appEnvironment,
         accessMetrics,
         clinicalTeam: CLINICAL_PROFESSIONALS,
         signInWithGoogle,

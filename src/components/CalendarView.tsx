@@ -1,465 +1,1117 @@
-import React, { useState } from 'react';
-import { 
-  Calendar as CalendarIcon, 
-  Video, 
-  Star, 
-  Clock, 
-  MapPin, 
-  FileText, 
-  Plus, 
-  ChevronLeft, 
-  ChevronRight, 
-  CheckCircle, 
-  AlertCircle,
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Calendar as CalendarIcon,
+  Video,
+  Star,
+  Clock,
+  MapPin,
+  FileText,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle,
   Stethoscope,
-  Sparkles
+  RefreshCw,
+  CheckSquare,
+  Send,
+  XCircle,
+  AlertCircle,
+  Activity,
 } from 'lucide-react';
 import { Appointment } from '../types';
 import { INITIAL_APPOINTMENTS } from '../data/mockData';
+import { useFeedback } from '../context/FeedbackContext';
+import { sendRealtimeChatMessage } from '../services/realtimeChat';
+import { usePatient } from '../context/PatientContext';
 
 interface CalendarViewProps {
   onStartTelehealth: (appointmentId: string) => void;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ onStartTelehealth }) => {
-  const [activeTab, setActiveTab] = useState<'all' | 'prenatal' | 'telehealth'>('prenatal');
-  const [currentMonth, setCurrentMonth] = useState('Outubro 2026');
+const APPOINTMENTS_STORAGE_KEY = 'vittaconect_patient_appointments_v2';
+
+type PeriodViewMode = 'hoje' | 'proximos' | 'semana' | 'mes';
+type CategoryFilter = 'todos' | 'consulta' | 'retorno' | 'exame' | 'teleconsulta';
+type ClinicalStatusFilter =
+  | 'todos'
+  | 'confirmado'
+  | 'aguardando_confirmacao'
+  | 'cancelado'
+  | 'concluido';
+
+function resolveCategory(
+  apt: Appointment
+): 'consulta' | 'retorno' | 'exame' | 'teleconsulta' {
+  if (apt.appointmentCategory) return apt.appointmentCategory;
+  if (apt.type === 'telehealth') return 'teleconsulta';
+  if (apt.type === 'ultrasound' || apt.type === 'exam' || apt.type === 'lab')
+    return 'exame';
+  if (
+    apt.type === 'return' ||
+    apt.title.toLowerCase().includes('retorno') ||
+    apt.title.toLowerCase().includes('revisão')
+  ) {
+    return 'retorno';
+  }
+  return 'consulta';
+}
+
+function resolveClinicalStatus(
+  apt: Appointment
+): 'confirmado' | 'aguardando_confirmacao' | 'cancelado' | 'concluido' {
+  if (apt.clinicalStatus) return apt.clinicalStatus;
+  if (apt.completed || apt.status === 'completed') return 'concluido';
+  if (apt.confirmedByPatient) return 'confirmado';
+  return 'aguardando_confirmacao';
+}
+
+const ENRICHED_DEFAULT_APPOINTMENTS: Appointment[] = [
+  ...INITIAL_APPOINTMENTS.map((apt, idx) => ({
+    ...apt,
+    appointmentCategory: resolveCategory(apt),
+    clinicalStatus:
+      idx === 0
+        ? ('confirmado' as const)
+        : idx === 1
+        ? ('aguardando_confirmacao' as const)
+        : ('confirmado' as const),
+    confirmedByPatient: idx !== 1,
+  })),
+  {
+    id: 'apt-retorno-1',
+    title: 'Retorno de Revisão Laboratorial & Curva Glicêmica',
+    professional: 'Enfª. Letícia',
+    role: 'Enfermeira Obstetra & Saúde da Mulher',
+    type: 'return',
+    appointmentCategory: 'retorno',
+    clinicalStatus: 'aguardando_confirmacao',
+    date: '2026-10-19',
+    time: '11:00',
+    location: 'Clínica Vittacare - Consultório 02',
+    instructions: 'Trazer resultados de hemograma, ferritina e glicemia em jejum.',
+  },
+  {
+    id: 'apt-concluido-1',
+    title: 'Consulta de Acolhimento & Abertura de Cartão Pré-Natal',
+    professional: 'Enf. Marcelo',
+    role: 'Enfermeiro Especialista Vittacare',
+    type: 'prenatal',
+    appointmentCategory: 'consulta',
+    clinicalStatus: 'concluido',
+    completed: true,
+    confirmedByPatient: true,
+    date: '2026-10-02',
+    time: '09:00',
+    location: 'Clínica Vittacare - Unidade Jardins',
+    instructions: 'Atendimento concluído e registrado em prontuário SOAP.',
+  },
+];
+
+export const CalendarView: React.FC<CalendarViewProps> = ({
+  onStartTelehealth,
+}) => {
+  const { showToast } = useFeedback();
+  const { patient } = usePatient();
+
+  // Section 10: Period Views (hoje, próximos dias, semana, mês)
+  const [periodMode, setPeriodMode] = useState<PeriodViewMode>('proximos');
+  // Section 10: Visual Category Differentiation (consulta, retorno, exame, teleconsulta)
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('todos');
+  // Section 10: Clear States (confirmado, aguardando confirmação, cancelado, concluído)
+  const [statusFilter, setStatusFilter] =
+    useState<ClinicalStatusFilter>('todos');
+
+  const [currentMonth] = useState('Outubro 2026');
   const [selectedDay, setSelectedDay] = useState<number | null>(12);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [appointments, setAppointments] = useState<Appointment[]>(INITIAL_APPOINTMENTS);
+  const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(
+    null
+  );
+  const [rescheduleDate, setRescheduleDate] = useState('2026-10-24');
+  const [rescheduleReason, setRescheduleReason] = useState('');
 
-  // Month days setup for October 2026 (Starts on Thursday Oct 1st)
-  // We mark days that have events: 12 (Dr. Silva), 15 (Enf. Carla Telehealth), 22 (Ultrassom)
-  const eventDays: Record<number, { type: 'prenatal' | 'telehealth' | 'ultrasound' | 'exam'; title: string }> = {
-    12: { type: 'prenatal', title: 'Consulta Pré-natal - Dr. Marcelo' },
-    15: { type: 'telehealth', title: 'Teleorientação - Enfª. Stephanie' },
-    22: { type: 'ultrasound', title: 'Ultrassom Morfológico 2º Trimestre - Dra. Letícia' },
-    28: { type: 'telehealth', title: 'Teleconsulta Nutricional' },
-  };
+  // New appointment form state
+  const [newCategory, setNewCategory] = useState<
+    'consulta' | 'retorno' | 'exame' | 'teleconsulta'
+  >('consulta');
+  const [newServiceType, setNewServiceType] = useState(
+    'Consulta Pré-natal Presencial (Enf. Marcelo)'
+  );
+  const [newPrefDate, setNewPrefDate] = useState('2026-10-20');
+  const [newPrefPeriod, setNewPrefPeriod] = useState<
+    'Manhã' | 'Tarde' | 'Noite'
+  >('Manhã');
+  const [newNotes, setNewNotes] = useState('');
 
-  // Filtered appointments
-  const filteredAppointments = appointments.filter((apt) => {
-    if (activeTab === 'prenatal') return apt.type === 'prenatal' || apt.type === 'ultrasound' || apt.type === 'exam';
-    if (activeTab === 'telehealth') return apt.type === 'telehealth';
-    return true;
+  const [appointments, setAppointments] = useState<Appointment[]>(() => {
+    try {
+      const saved = localStorage.getItem(APPOINTMENTS_STORAGE_KEY);
+      if (saved) {
+        const parsed: Appointment[] = JSON.parse(saved);
+        return parsed.map((apt) => ({
+          ...apt,
+          appointmentCategory: resolveCategory(apt),
+          clinicalStatus: resolveClinicalStatus(apt),
+        }));
+      }
+      return ENRICHED_DEFAULT_APPOINTMENTS;
+    } catch {
+      return ENRICHED_DEFAULT_APPOINTMENTS;
+    }
   });
 
+  const [prepChecked, setPrepChecked] = useState<Record<string, boolean>>({
+    'apt-1-doc': true,
+    'apt-1-exams': true,
+    'apt-2-cam': true,
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        APPOINTMENTS_STORAGE_KEY,
+        JSON.stringify(appointments)
+      );
+    } catch {
+      // ignore storage quota errors
+    }
+  }, [appointments]);
+
+  const togglePrepItem = (key: string) => {
+    setPrepChecked((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleConfirmPresence = (apt: Appointment) => {
+    setAppointments((prev) =>
+      prev.map((item) =>
+        item.id === apt.id
+          ? {
+              ...item,
+              confirmedByPatient: true,
+              clinicalStatus: 'confirmado',
+            }
+          : item
+      )
+    );
+    showToast({
+      title: 'Presença Confirmada!',
+      description: `Sua presença em "${apt.title}" (${apt.date
+        .split('-')
+        .reverse()
+        .join('/')} às ${apt.time}) foi atualizada para Confirmado.`,
+      tone: 'success',
+    });
+  };
+
+  const handleMarkCompleted = (apt: Appointment) => {
+    setAppointments((prev) =>
+      prev.map((item) =>
+        item.id === apt.id
+          ? {
+              ...item,
+              completed: true,
+              clinicalStatus: 'concluido',
+            }
+          : item
+      )
+    );
+    showToast({
+      title: 'Atendimento Concluído',
+      description: `"${apt.title}" foi marcado como Concluído no seu histórico.`,
+      tone: 'success',
+    });
+  };
+
+  const handleCancelAppointment = (apt: Appointment) => {
+    setAppointments((prev) =>
+      prev.map((item) =>
+        item.id === apt.id
+          ? {
+              ...item,
+              clinicalStatus: 'cancelado',
+              confirmedByPatient: false,
+            }
+          : item
+      )
+    );
+    showToast({
+      title: 'Agendamento Cancelado',
+      description: `"${apt.title}" foi alterado para o estado Cancelado. Você pode reagendar quando desejar.`,
+      tone: 'info',
+    });
+  };
+
+  const handleRequestReschedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rescheduleTarget) return;
+
+    setAppointments((prev) =>
+      prev.map((item) =>
+        item.id === rescheduleTarget.id
+          ? {
+              ...item,
+              date: rescheduleDate,
+              rescheduleRequested: true,
+              clinicalStatus: 'aguardando_confirmacao',
+              confirmedByPatient: false,
+              notes: `Reagendamento solicitado para ${rescheduleDate
+                .split('-')
+                .reverse()
+                .join('/')}. Motivo: ${rescheduleReason || 'Ajuste de horário'}`,
+            }
+          : item
+      )
+    );
+
+    try {
+      await sendRealtimeChatMessage({
+        channelId: 'group',
+        senderId: patient?.id || 'pat-1',
+        senderName: patient?.name || 'Paciente',
+        senderRole: 'paciente',
+        text: `📅 Solicitação de reagendamento para "${
+          rescheduleTarget.title
+        }" (nova data sugerida: ${rescheduleDate
+          .split('-')
+          .reverse()
+          .join('/')}). Observação: ${
+          rescheduleReason || 'Disponibilidade de agenda'
+        }.`,
+        category: 'retorno',
+      });
+    } catch {
+      // fallback local
+    }
+
+    showToast({
+      title: 'Solicitação de Reagendamento Enviada',
+      description:
+        'O agendamento agora aguarda confirmação da equipe Vittacare.',
+      tone: 'info',
+    });
+    setRescheduleTarget(null);
+    setRescheduleReason('');
+  };
+
+  const handleCreateScheduleRequest = (e: React.FormEvent) => {
+    e.preventDefault();
+    const isTele = newCategory === 'teleconsulta';
+    const isExam = newCategory === 'exame';
+
+    const createdApt: Appointment = {
+      id: `apt-${Date.now()}`,
+      title: newServiceType.split(' (')[0],
+      professional: newServiceType.includes('(')
+        ? newServiceType.split('(')[1].replace(')', '')
+        : 'Equipe Clínica Vittacare',
+      role: isTele
+        ? 'Teleatendimento Especializado'
+        : 'Atendimento Presencial Vittacare',
+      date: newPrefDate,
+      time:
+        newPrefPeriod === 'Manhã'
+          ? '09:30'
+          : newPrefPeriod === 'Tarde'
+          ? '15:00'
+          : '18:30',
+      type: isTele
+        ? 'telehealth'
+        : isExam
+        ? 'ultrasound'
+        : newCategory === 'retorno'
+        ? 'return'
+        : 'prenatal',
+      appointmentCategory: newCategory,
+      clinicalStatus: 'aguardando_confirmacao',
+      status: 'upcoming',
+      location: isTele
+        ? 'Sala de Teleatendimento Vittaconect 2.0'
+        : 'Clínica Vittacare - Unidade Jardins',
+      instructions:
+        newNotes.trim() ||
+        'Chegar com 15 minutos de antecedência e trazer exames recentes.',
+      confirmedByPatient: false,
+    };
+
+    setAppointments((prev) => [createdApt, ...prev]);
+    setShowScheduleModal(false);
+    setNewNotes('');
+
+    showToast({
+      title: 'Solicitação Registrada (Aguardando Confirmação)',
+      description: `${createdApt.title} pré-agendado para ${newPrefDate
+        .split('-')
+        .reverse()
+        .join('/')} (${newPrefPeriod}).`,
+      tone: 'success',
+    });
+  };
+
+  const eventDays: Record<
+    number,
+    {
+      category: 'consulta' | 'retorno' | 'exame' | 'teleconsulta';
+      title: string;
+    }
+  > = {
+    2: { category: 'consulta', title: 'Consulta de Acolhimento (Concluída)' },
+    12: { category: 'consulta', title: 'Consulta Pré-natal - Enf. Marcelo' },
+    15: { category: 'teleconsulta', title: 'Teleorientação - Enfª. Stephanie' },
+    19: { category: 'retorno', title: 'Retorno Laboratorial - Enfª. Letícia' },
+    22: { category: 'exame', title: 'Ultrassom Morfológico 2º Trimestre' },
+    28: { category: 'teleconsulta', title: 'Teleconsulta Nutricional' },
+  };
+
+  // Filtered appointments by Period + Category + Status
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter((apt) => {
+      const cat = resolveCategory(apt);
+      const status = resolveClinicalStatus(apt);
+      const dayNum = parseInt(apt.date.split('-')[2] || '12', 10);
+
+      // Period filter (hoje = dia 12/15 em destaque, proximos = a partir de hoje, semana = 12..19, mes = todos)
+      let matchesPeriod = true;
+      if (periodMode === 'hoje') {
+        matchesPeriod = dayNum === 12 || dayNum === 15;
+      } else if (periodMode === 'semana') {
+        matchesPeriod = dayNum >= 12 && dayNum <= 19;
+      } else if (periodMode === 'proximos') {
+        matchesPeriod = status !== 'concluido' && status !== 'cancelado';
+      }
+
+      const matchesCategory =
+        categoryFilter === 'todos' || cat === categoryFilter;
+      const matchesStatus =
+        statusFilter === 'todos' || status === statusFilter;
+
+      return matchesPeriod && matchesCategory && matchesStatus;
+    });
+  }, [appointments, periodMode, categoryFilter, statusFilter]);
+
+  const getCategoryStyle = (
+    cat: 'consulta' | 'retorno' | 'exame' | 'teleconsulta'
+  ) => {
+    switch (cat) {
+      case 'consulta':
+        return {
+          label: 'Consulta Presencial',
+          borderLeft: 'border-l-[#5D1425]',
+          iconBg: 'bg-[#FAF0F2] text-[#5D1425]',
+          textAccent: 'text-[#5D1425]',
+          icon: Stethoscope,
+        };
+      case 'retorno':
+        return {
+          label: 'Retorno Clínico',
+          borderLeft: 'border-l-[#B89243]',
+          iconBg: 'bg-[#FAF6ED] text-[#9B7731]',
+          textAccent: 'text-[#9B7731]',
+          icon: RefreshCw,
+        };
+      case 'exame':
+        return {
+          label: 'Exame / Ultrassom',
+          borderLeft: 'border-l-emerald-700',
+          iconBg: 'bg-emerald-50 text-emerald-800',
+          textAccent: 'text-emerald-800',
+          icon: Activity,
+        };
+      case 'teleconsulta':
+        return {
+          label: 'Teleconsulta Online',
+          borderLeft: 'border-l-[#144272]',
+          iconBg: 'bg-[#E6F3FE] text-[#0A2647]',
+          textAccent: 'text-[#144272]',
+          icon: Video,
+        };
+    }
+  };
+
+  const getStatusMeta = (
+    status: 'confirmado' | 'aguardando_confirmacao' | 'cancelado' | 'concluido'
+  ) => {
+    switch (status) {
+      case 'confirmado':
+        return {
+          label: 'Confirmado',
+          textClass: 'text-emerald-800 bg-emerald-50 border-emerald-200',
+          icon: CheckCircle,
+        };
+      case 'aguardando_confirmacao':
+        return {
+          label: 'Aguardando Confirmação',
+          textClass: 'text-amber-800 bg-amber-50 border-amber-200',
+          icon: AlertCircle,
+        };
+      case 'cancelado':
+        return {
+          label: 'Cancelado',
+          textClass: 'text-rose-800 bg-rose-50 border-rose-200',
+          icon: XCircle,
+        };
+      case 'concluido':
+        return {
+          label: 'Concluído',
+          textClass: 'text-stone-700 bg-stone-100 border-stone-300',
+          icon: CheckSquare,
+        };
+    }
+  };
+
   return (
-    <div className="space-y-6 sm:space-y-8 animate-fadeIn">
+    <div className="space-y-6 sm:space-y-7 animate-fadeIn pb-12">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#8D253D] uppercase tracking-wider mb-1">
-            <span className="w-2 h-2 rounded-full bg-[#B89243]" />
-            Clínica Vittacare Integrada
-          </div>
+          <p className="text-xs font-semibold text-[#8D253D] uppercase tracking-wider mb-1">
+            Clínica Vittacare Integrada · Agenda Inteligente
+          </p>
           <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#480D1B]">
             Minha Agenda de Saúde
           </h1>
           <p className="text-sm text-stone-600 mt-1">
-            Acompanhe suas consultas presenciais, ultrassons e videochamadas em um só lugar.
+            Visualize por hoje, próximos dias, semana ou mês, com distinção clara entre consulta, retorno, exame e teleconsulta.
           </p>
         </div>
 
         <button
+          type="button"
           onClick={() => setShowScheduleModal(true)}
-          className="self-start sm:self-auto flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#5D1425] hover:bg-[#741C30] text-white text-xs font-semibold tracking-wide transition-all shadow-sm cursor-pointer"
+          className="self-start sm:self-auto flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#5D1425] hover:bg-[#741C30] text-white text-xs font-bold tracking-wide transition-all shadow-sm cursor-pointer"
         >
           <Plus className="w-4 h-4 text-[#E6D4AF]" />
-          <span>Agendar Nova Consulta</span>
+          <span>Agendar Atendimento</span>
         </button>
       </div>
 
-      {/* Tabs Selector: Foco Pré-natal, Foco Teleatendimento, Todos */}
-      <div className="flex items-center gap-1.5 p-1.5 bg-[#FAF6ED] rounded-2xl border border-[#E6D4AF] text-xs font-medium w-full sm:w-auto">
-        <button
-          onClick={() => setActiveTab('prenatal')}
-          className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'prenatal'
-              ? 'bg-[#5D1425] text-white font-semibold shadow-xs'
-              : 'text-stone-600 hover:text-[#5D1425]'
-          }`}
-        >
-          <CalendarIcon className="w-3.5 h-3.5" />
-          <span>Foco Pré-natal & Exames</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('telehealth')}
-          className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'telehealth'
-              ? 'bg-[#5D1425] text-white font-semibold shadow-xs'
-              : 'text-stone-600 hover:text-[#5D1425]'
-          }`}
-        >
-          <Video className="w-3.5 h-3.5" />
-          <span>Foco Teleatendimento (Vídeo)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'all'
-              ? 'bg-[#5D1425] text-white font-semibold shadow-xs'
-              : 'text-stone-600 hover:text-[#5D1425]'
-          }`}
-        >
-          <span>Todos</span>
-        </button>
-      </div>
-
-      {/* Section 1: Monthly Interactive Calendar (Calendário 1 - Foco Pré-natal) */}
-      <section className="bg-white rounded-3xl p-5 sm:p-7 border border-[#E6D4AF]/80 shadow-[0_4px_20px_rgba(184,146,67,0.06)]">
-        {/* Calendar Nav Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-stone-100">
-          <div className="flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5 text-[#B89243]" />
-            <h2 className="font-serif font-bold text-lg sm:text-xl text-[#480D1B]">
-              {currentMonth}
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="hidden sm:flex items-center gap-1.5 text-xs text-stone-500 mr-2">
-              <Star className="w-3.5 h-3.5 text-[#B89243] fill-[#B89243]" />
-              Data com agendamento
-            </span>
-            <button
-              onClick={() => {}}
-              className="p-1.5 rounded-lg border border-stone-200 hover:bg-[#FAF6ED] text-stone-600 transition-colors cursor-pointer"
-              title="Mês Anterior"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => {}}
-              className="p-1.5 rounded-lg border border-stone-200 hover:bg-[#FAF6ED] text-stone-600 transition-colors cursor-pointer"
-              title="Próximo Mês"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Days of Week Header */}
-        <div className="grid grid-cols-7 text-center text-xs font-semibold text-stone-400 py-3 border-b border-stone-50">
-          <span>DOM</span>
-          <span>SEG</span>
-          <span>TER</span>
-          <span>QUA</span>
-          <span>QUI</span>
-          <span>SEX</span>
-          <span>SÁB</span>
-        </div>
-
-        {/* Calendar Days Grid */}
-        <div className="grid grid-cols-7 gap-1 sm:gap-2 pt-2">
-          {/* Days from previous month (e.g. 4 days offset for Oct 2026 which starts on Thursday) */}
-          {[27, 28, 29, 30].map((d) => (
-            <div
-              key={`prev-${d}`}
-              className="h-12 sm:h-14 p-1 rounded-xl text-stone-300 text-xs flex flex-col items-center justify-center opacity-40"
-            >
-              <span>{d}</span>
-            </div>
-          ))}
-
-          {/* Days of current month (1 to 31) */}
-          {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
-            const hasEvent = eventDays[day];
-            const isSelected = selectedDay === day;
-            const isTelehealth = hasEvent?.type === 'telehealth';
-
-            return (
+      {/* =====================================================================
+          SECTION 10 CONTROLS:
+          1) Period View Selector (Hoje | Próximos Dias | Semana | Mês)
+          2) Category Selector (Consulta | Retorno | Exame | Teleconsulta)
+          3) Status Filter (Confirmado | Aguardando Confirmação | Cancelado | Concluído)
+         ===================================================================== */}
+      <div className="bg-white rounded-2xl p-4 border border-[#E6D4AF] shadow-2xs space-y-3.5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Period Switcher */}
+          <div className="flex items-center gap-1 p-1 bg-[#FAF6ED] rounded-xl border border-[#E6D4AF]">
+            {(
+              [
+                { id: 'hoje', label: 'Hoje' },
+                { id: 'proximos', label: 'Próximos Dias' },
+                { id: 'semana', label: 'Semana' },
+                { id: 'mes', label: 'Mês Completo' },
+              ] as const
+            ).map((p) => (
               <button
-                key={`oct-${day}`}
-                onClick={() => setSelectedDay(day)}
-                className={`h-12 sm:h-14 p-1 rounded-xl text-xs flex flex-col items-center justify-between transition-all cursor-pointer relative ${
-                  isSelected
-                    ? 'bg-[#5D1425] text-white shadow-md font-bold'
-                    : hasEvent
-                    ? 'bg-[#FAF6ED] text-[#480D1B] font-semibold border border-[#E6D4AF]'
-                    : 'text-stone-700 hover:bg-[#FAF0F2]/50'
+                key={p.id}
+                type="button"
+                onClick={() => setPeriodMode(p.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  periodMode === p.id
+                    ? 'bg-[#5D1425] text-white shadow-2xs'
+                    : 'text-stone-600 hover:text-[#5D1425]'
                 }`}
               >
-                <span className="tabular-nums">{day}</span>
+                {p.label}
+              </button>
+            ))}
+          </div>
 
-                {/* Golden Star / Marker for scheduled days */}
-                {hasEvent && (
-                  <div className="flex items-center gap-0.5 mb-1">
-                    {isTelehealth ? (
-                      <span className="flex items-center">
-                        <Video className={`w-3 h-3 ${isSelected ? 'text-[#E6D4AF]' : 'text-[#8D253D]'}`} />
-                      </span>
-                    ) : (
-                      <Star
-                        className={`w-3 h-3 ${
-                          isSelected ? 'text-[#DEC68E] fill-[#DEC68E]' : 'text-[#B89243] fill-[#B89243]'
-                        }`}
-                      />
+          {/* Appointment Type Filter */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            {(
+              [
+                { id: 'todos', label: 'Todos os Tipos' },
+                { id: 'consulta', label: 'Consultas' },
+                { id: 'retorno', label: 'Retornos' },
+                { id: 'exame', label: 'Exames' },
+                { id: 'teleconsulta', label: 'Teleconsultas' },
+              ] as const
+            ).map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setCategoryFilter(cat.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer border ${
+                  categoryFilter === cat.id
+                    ? 'bg-[#FAF0F2] text-[#5D1425] border-[#8D253D]'
+                    : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Status Filter Strip */}
+        <div className="pt-2.5 border-t border-stone-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider mr-1 shrink-0">
+            Estado:
+          </span>
+          {(
+            [
+              { id: 'todos', label: 'Todos os Estados' },
+              { id: 'confirmado', label: 'Confirmado' },
+              { id: 'aguardando_confirmacao', label: 'Aguardando Confirmação' },
+              { id: 'concluido', label: 'Concluído' },
+              { id: 'cancelado', label: 'Cancelado' },
+            ] as const
+          ).map((st) => (
+            <button
+              key={st.id}
+              type="button"
+              onClick={() => setStatusFilter(st.id)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold shrink-0 transition-all cursor-pointer ${
+                statusFilter === st.id
+                  ? 'bg-[#480D1B] text-[#E6D4AF]'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              {st.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Content Grid: Monthly Calendar Widget + Appointments List */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Visual Calendar (5 cols) */}
+        <div className="lg:col-span-5 bg-white rounded-3xl p-5 sm:p-6 border border-[#E6D4AF] shadow-2xs">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <span className="text-[11px] text-[#9B7731] font-semibold uppercase tracking-wider block">
+                {periodMode === 'semana'
+                  ? 'Visão Semanal (12 a 19 Out)'
+                  : periodMode === 'hoje'
+                  ? 'Agenda de Hoje'
+                  : 'Calendário Mensal'}
+              </span>
+              <h2 className="text-xl font-serif font-bold text-[#480D1B]">
+                {currentMonth}
+              </h2>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPeriodMode('semana')}
+                className="px-2.5 py-1 rounded-lg border border-stone-200 hover:bg-[#FAF6ED] text-stone-600 text-[11px] font-semibold cursor-pointer"
+              >
+                Semana
+              </button>
+              <button
+                type="button"
+                onClick={() => setPeriodMode('mes')}
+                className="px-2.5 py-1 rounded-lg border border-stone-200 hover:bg-[#FAF6ED] text-stone-600 text-[11px] font-semibold cursor-pointer"
+              >
+                Mês
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-stone-400 mb-2">
+            <span>Dom</span>
+            <span>Seg</span>
+            <span>Ter</span>
+            <span>Qua</span>
+            <span>Qui</span>
+            <span>Sex</span>
+            <span>Sáb</span>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1.5 text-center">
+            <div className="h-10" />
+            <div className="h-10" />
+            <div className="h-10" />
+            <div className="h-10" />
+
+            {Array.from({ length: 31 }).map((_, idx) => {
+              const day = idx + 1;
+              const event = eventDays[day];
+              const isSelected = selectedDay === day;
+              const isCurrentWeek = day >= 12 && day <= 18;
+
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => setSelectedDay(day)}
+                  className={`relative h-11 rounded-xl flex flex-col items-center justify-center text-xs font-medium transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#5D1425] text-white font-bold shadow-sm scale-105'
+                      : event
+                      ? 'bg-[#FAF6ED] border border-[#B89243] text-[#480D1B] font-semibold'
+                      : periodMode === 'semana' && isCurrentWeek
+                      ? 'bg-[#FAF0F2]/70 text-[#5D1425] border border-[#EBBEC8]'
+                      : 'hover:bg-stone-50 text-stone-700'
+                  }`}
+                  title={event ? event.title : `Dia ${day}`}
+                >
+                  <span>{day}</span>
+                  {event && (
+                    <Star
+                      className={`w-2.5 h-2.5 mt-0.5 ${
+                        isSelected
+                          ? 'text-[#E6D4AF] fill-[#E6D4AF]'
+                          : 'text-[#B89243] fill-[#B89243]'
+                      }`}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Selected Day Preview */}
+          {selectedDay && (
+            <div className="mt-5 p-3.5 rounded-2xl bg-[#FAF0F2]/60 border border-[#EBBEC8] text-xs">
+              {eventDays[selectedDay] ? (
+                <div className="flex items-start gap-2.5">
+                  <Star className="w-4 h-4 text-[#B89243] fill-[#B89243] shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-[#480D1B] block">
+                      Dia {selectedDay} de Outubro:
+                    </span>
+                    <span className="text-stone-700">
+                      {eventDays[selectedDay].title}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <span className="text-stone-500">
+                  Dia {selectedDay} de Outubro: Dia livre para descanso e rotina de hidratação.
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Legend for the 4 categories */}
+          <div className="mt-5 pt-4 border-t border-stone-100 grid grid-cols-2 gap-2 text-[11px] text-stone-600">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#5D1425]" />
+              <span>Consulta Presencial</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#B89243]" />
+              <span>Retorno Clínico</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-700" />
+              <span>Exame / Ultrassom</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#144272]" />
+              <span>Teleconsulta</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Appointments List (7 cols) */}
+        <div className="lg:col-span-7 space-y-4">
+          {filteredAppointments.length === 0 ? (
+            <div className="bg-white rounded-3xl p-8 text-center border border-[#E6D4AF]">
+              <p className="text-sm text-stone-600 font-medium">
+                Nenhum agendamento encontrado para este período/filtro.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setPeriodMode('mes');
+                  setCategoryFilter('todos');
+                  setStatusFilter('todos');
+                }}
+                className="mt-3 px-4 py-2 rounded-xl bg-[#FAF0F2] text-[#5D1425] text-xs font-bold cursor-pointer"
+              >
+                Mostrar Todos os Agendamentos do Mês
+              </button>
+            </div>
+          ) : (
+            filteredAppointments.map((apt) => {
+              const cat = resolveCategory(apt);
+              const clinicalStatus = resolveClinicalStatus(apt);
+              const catStyle = getCategoryStyle(cat);
+              const statusMeta = getStatusMeta(clinicalStatus);
+              const CatIcon = catStyle.icon;
+              const StatusIcon = statusMeta.icon;
+              const isTelehealth = cat === 'teleconsulta';
+
+              return (
+                <div
+                  key={apt.id}
+                  className={`rounded-2xl p-5 sm:p-6 bg-white border border-l-4 ${catStyle.borderLeft} border-[#E6D4AF] shadow-2xs transition-all space-y-4`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="flex items-start gap-3.5">
+                      <div
+                        className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${catStyle.iconBg}`}
+                      >
+                        <CatIcon className="w-5 h-5" />
+                      </div>
+
+                      <div>
+                        {/* Type + Explicit Status */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`text-[11px] font-bold uppercase tracking-wider ${catStyle.textAccent}`}
+                          >
+                            {catStyle.label}
+                          </span>
+                          <span aria-hidden="true" className="text-stone-300">
+                            ·
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md border text-[11px] font-bold ${statusMeta.textClass}`}
+                          >
+                            <StatusIcon className="w-3 h-3" />
+                            {statusMeta.label}
+                          </span>
+                        </div>
+
+                        <h3 className="font-serif font-bold text-lg text-[#480D1B] mt-1">
+                          {apt.title}
+                        </h3>
+
+                        <p className="text-xs text-stone-600 font-medium mt-0.5">
+                          {apt.professional}{' '}
+                          {apt.role ? `• ${apt.role}` : ''}
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-4 mt-2.5 text-xs text-stone-500">
+                          <span className="flex items-center gap-1.5 font-semibold text-stone-700">
+                            <Clock className="w-3.5 h-3.5 text-[#B89243]" />
+                            {apt.date.split('-').reverse().join('/')} às{' '}
+                            {apt.time}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-[#8D253D]" />
+                            {apt.location}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {isTelehealth && clinicalStatus !== 'cancelado' && (
+                      <button
+                        type="button"
+                        onClick={() => onStartTelehealth(apt.id)}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#5D1425] hover:bg-[#741C30] text-[#E6D4AF] font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer shrink-0"
+                      >
+                        <Video className="w-4 h-4" />
+                        <span>Entrar na Teleconsulta</span>
+                      </button>
                     )}
                   </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
 
-        {/* Selected Day Info Strip */}
-        {selectedDay && eventDays[selectedDay] && (
-          <div className="mt-4 p-3.5 rounded-2xl bg-[#FAF0F2] border border-[#EBBEC8] flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <Star className="w-4 h-4 text-[#B89243] fill-[#B89243]" />
-              <span className="font-semibold text-[#5D1425]">
-                {selectedDay}/10: {eventDays[selectedDay].title}
-              </span>
-            </div>
-            <span className="text-stone-500 font-medium">Veja os detalhes logo abaixo</span>
-          </div>
-        )}
-      </section>
+                  {/* Instructions */}
+                  {apt.instructions && (
+                    <div className="p-3 rounded-xl bg-[#FDFBF7] border border-stone-200/70 flex items-start gap-2.5 text-xs text-stone-600">
+                      <FileText className="w-4 h-4 text-[#9B7731] shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-stone-800">
+                          Preparo / Observações:{' '}
+                        </strong>
+                        {apt.instructions}
+                      </div>
+                    </div>
+                  )}
 
-      {/* Prominent Videochamada Banner & Active Teleatendimento Section (Calendário 2 - Foco Teleatendimento) */}
-      {(activeTab === 'telehealth' || activeTab === 'all') && (
-        <section className="bg-gradient-to-br from-[#FAF0F2] via-white to-[#FAF6ED] rounded-3xl p-6 sm:p-7 border border-[#EBBEC8] shadow-sm relative overflow-hidden">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#3B744C] animate-ping" />
-                <span className="text-xs uppercase font-bold tracking-wider text-[#8D253D]">
-                  Teleatendimento Vittaconect Disponível
-                </span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-serif font-bold text-[#480D1B]">
-                Teleorientação Materna - Enfª. Stephanie
-              </h2>
-              <p className="text-xs sm:text-sm text-stone-600 max-w-xl">
-                Sua sala de videochamada criptografada está aberta. Tire dúvidas sobre sinais de trabalho de parto, contrações de treinamento, aleitamento e orientações de rotina.
-              </p>
-              <div className="flex items-center gap-4 text-xs text-stone-500 pt-1">
-                <span className="flex items-center gap-1 font-semibold text-stone-700">
-                  <Clock className="w-3.5 h-3.5 text-[#B89243]" />
-                  15/10 às 16:00
-                </span>
-                <span>·</span>
-                <span>Duração: 45 min</span>
-                <span>·</span>
-                <span className="text-[#3B744C] font-semibold">Profissional Conectada</span>
-              </div>
-            </div>
+                  {/* Quick Pre-Consultation Checklist */}
+                  {clinicalStatus !== 'cancelado' &&
+                    clinicalStatus !== 'concluido' && (
+                      <div className="p-3 rounded-xl bg-[#FAF6ED]/60 border border-[#E6D4AF] space-y-2">
+                        <span className="text-[11px] font-bold text-[#480D1B] uppercase tracking-wider flex items-center gap-1.5">
+                          <CheckSquare className="w-3.5 h-3.5 text-[#8D253D]" />
+                          Checklist Pré-Atendimento:
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-stone-700">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(prepChecked[`${apt.id}-doc`])}
+                              onChange={() => togglePrepItem(`${apt.id}-doc`)}
+                              className="rounded accent-[#5D1425]"
+                            />
+                            <span>
+                              Cartão Pré-Natal / Exames recentes separados
+                            </span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(prepChecked[`${apt.id}-sint`])}
+                              onChange={() => togglePrepItem(`${apt.id}-sint`)}
+                              className="rounded accent-[#5D1425]"
+                            />
+                            <span>
+                              Dúvidas e sintomas registrados no aplicativo
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
 
-            {/* Prominent Gold Action Button (Prompt Requirement) */}
-            <div className="shrink-0">
-              <button
-                onClick={() => onStartTelehealth('apt-2')}
-                className="w-full md:w-auto px-6 py-4 rounded-2xl bg-gradient-to-r from-[#D8BD83] via-[#B89243] to-[#CAA55C] hover:from-[#E6D4AF] hover:to-[#B89243] text-[#2C0610] font-bold text-sm sm:text-base tracking-wide flex items-center justify-center gap-2.5 shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer"
-              >
-                <Video className="w-5 h-5 text-[#2C0610]" />
-                <span>Entrar na Videochamada</span>
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
+                  {/* Action Buttons for State Management */}
+                  <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {clinicalStatus === 'aguardando_confirmacao' && (
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmPresence(apt)}
+                          className="px-3.5 py-1.5 rounded-xl bg-[#5D1425] hover:bg-[#741C30] text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5 text-[#E6D4AF]" />
+                          <span>Confirmar Presença</span>
+                        </button>
+                      )}
 
-      {/* Listagem de Consultas e Exames (Prompt Requirement: "12/10 - Consulta Pré-natal - Dr. Silva", etc.) */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-serif font-bold text-[#480D1B]">
-            {activeTab === 'telehealth'
-              ? 'Próximas Videochamadas Agendadas'
-              : activeTab === 'prenatal'
-              ? 'Próximas Consultas Presenciais & Exames'
-              : 'Todos os Agendamentos'}
-          </h2>
-          <span className="text-xs text-stone-500">{filteredAppointments.length} agendamento(s)</span>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4">
-          {filteredAppointments.map((apt) => {
-            const isTelehealth = apt.type === 'telehealth';
-            const isLive = apt.status === 'live_now';
-
-            return (
-              <div
-                key={apt.id}
-                className={`p-5 sm:p-6 rounded-2xl bg-white border transition-all ${
-                  isLive
-                    ? 'border-[#B89243] shadow-[0_4px_16px_rgba(184,146,67,0.12)]'
-                    : 'border-[#E6D4AF]/70 hover:border-[#B89243] hover:shadow-xs'
-                }`}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  {/* Left: Professional & Date */}
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                        isTelehealth
-                          ? 'bg-[#FAF0F2] text-[#8D253D]'
-                          : 'bg-[#FAF6ED] text-[#9B7731]'
-                      }`}
-                    >
-                      {isTelehealth ? (
-                        <Video className="w-6 h-6 stroke-[2]" />
-                      ) : (
-                        <Stethoscope className="w-6 h-6 stroke-[2]" />
+                      {clinicalStatus === 'confirmado' && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkCompleted(apt)}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <CheckSquare className="w-3.5 h-3.5" />
+                          <span>Marcar como Concluído</span>
+                        </button>
                       )}
                     </div>
 
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[#480D1B]">
-                          {apt.date.split('-').reverse().join('/')} às {apt.time}
-                        </span>
-                        <span className="text-stone-300">·</span>
-                        <span
-                          className={`text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                            isTelehealth
-                              ? 'bg-[#FAF0F2] text-[#8D253D]'
-                              : 'bg-[#FAF6ED] text-[#9B7731]'
-                          }`}
+                    <div className="flex items-center gap-2">
+                      {clinicalStatus !== 'concluido' && (
+                        <button
+                          type="button"
+                          onClick={() => setRescheduleTarget(apt)}
+                          className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FAF6ED] text-stone-700 border border-stone-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
                         >
-                          {apt.type === 'telehealth'
-                            ? 'Teleatendimento'
-                            : apt.type === 'ultrasound'
-                            ? 'Ultrassom'
-                            : apt.type === 'exam'
-                            ? 'Exame Laboratorial'
-                            : 'Consulta Pré-natal'}
-                        </span>
-                      </div>
+                          <RefreshCw className="w-3.5 h-3.5 text-[#8D253D]" />
+                          <span>Reagendar</span>
+                        </button>
+                      )}
 
-                      <h3 className="font-serif font-bold text-lg text-[#480D1B] mt-1">
-                        {apt.title}
-                      </h3>
-
-                      <p className="text-xs text-stone-600 font-medium">
-                        {apt.professional} · {apt.role}
-                      </p>
-
-                      <p className="text-xs text-stone-500 flex items-center gap-1.5 mt-1">
-                        <MapPin className="w-3.5 h-3.5 text-[#B89243]" />
-                        {apt.location}
-                      </p>
+                      {clinicalStatus !== 'cancelado' &&
+                        clinicalStatus !== 'concluido' && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelAppointment(apt)}
+                            className="px-3 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>Cancelar</span>
+                          </button>
+                        )}
                     </div>
                   </div>
-
-                  {/* Right: Actions */}
-                  <div className="flex sm:flex-col items-center sm:items-end gap-2.5 pt-3 sm:pt-0 border-t sm:border-t-0 border-stone-100">
-                    {isTelehealth ? (
-                      <button
-                        onClick={() => onStartTelehealth(apt.id)}
-                        className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                          isLive
-                            ? 'bg-[#5D1425] hover:bg-[#741C30] text-white shadow-sm'
-                            : 'bg-[#FAF6ED] text-[#480D1B] hover:bg-[#F3EBD8]'
-                        }`}
-                      >
-                        <Video className="w-4 h-4 text-[#D8BD83]" />
-                        <span>Entrar na Videochamada</span>
-                      </button>
-                    ) : (
-                      <div className="text-right">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#3B744C] bg-[#F2F7F3] px-2.5 py-1 rounded-full">
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          Confirmado na Vittacare
-                        </span>
-                      </div>
-                    )}
-                  </div>
                 </div>
-
-                {/* Instructions / Preparation Footnote */}
-                {apt.instructions && (
-                  <div className="mt-4 pt-3 border-t border-stone-100 flex items-start gap-2 text-xs text-stone-600 bg-stone-50/60 p-2.5 rounded-xl">
-                    <FileText className="w-3.5 h-3.5 text-[#B89243] shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Instruções & Preparo:</strong> {apt.instructions}
-                    </span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
-      </section>
+      </div>
 
-      {/* Schedule Appointment Modal */}
-      {showScheduleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 border border-[#E6D4AF] shadow-2xl relative">
-            <h3 className="font-serif font-bold text-2xl text-[#480D1B] mb-2">
-              Solicitar Agendamento
-            </h3>
-            <p className="text-xs text-stone-600 mb-6">
-              Escolha a modalidade desejada na Clínica Vittacare. Nossa recepção confirmará o horário em até 30 minutos via aplicativo.
+      {/* Reschedule Modal */}
+      {rescheduleTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 border border-[#E6D4AF] shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif font-bold text-xl text-[#480D1B]">
+                Solicitar Reagendamento
+              </h3>
+              <button
+                type="button"
+                onClick={() => setRescheduleTarget(null)}
+                className="text-stone-400 hover:text-stone-700 p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-stone-600">
+              Atendimento: <strong>{rescheduleTarget.title}</strong>
             </p>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                alert('Solicitação de agendamento enviada à equipe da Clínica Vittacare com sucesso!');
-                setShowScheduleModal(false);
-              }}
-              className="space-y-4 text-xs"
-            >
+            <form onSubmit={handleRequestReschedule} className="space-y-3">
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">
-                  Tipo de Atendimento
-                </label>
-                <select className="w-full p-3 rounded-xl border border-stone-200 bg-[#FAF6ED]/40 focus:ring-2 focus:ring-[#B89243] focus:outline-none">
-                  <option>Consulta Pré-natal Presencial (Dr. Marcelo)</option>
-                  <option>Teleorientação de Enfermagem Obstétrica (Enfª. Stephanie)</option>
-                  <option>Ultrassonografia Morfológica / 4D (Dra. Letícia)</option>
-                  <option>Consulta Ginecológica Preventiva (Dra. Bianca)</option>
-                  <option>Teleconsulta Nutricional Materna</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-stone-700 mb-1">
-                  Data de Preferência
+                <label className="text-xs font-semibold text-stone-700 block mb-1">
+                  Nova Data Sugerida
                 </label>
                 <input
                   type="date"
-                  defaultValue="2026-10-20"
-                  className="w-full p-3 rounded-xl border border-stone-200 bg-[#FAF6ED]/40 focus:ring-2 focus:ring-[#B89243] focus:outline-none"
+                  value={rescheduleDate}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6D4AF] text-xs bg-[#FDFBF7]"
                 />
               </div>
-
               <div>
-                <label className="block font-semibold text-stone-700 mb-1">
-                  Período Preferencial
+                <label className="text-xs font-semibold text-stone-700 block mb-1">
+                  Motivo / Preferência de Horário
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <label className="flex items-center justify-center p-2.5 rounded-xl border border-stone-200 cursor-pointer hover:bg-[#FAF6ED]">
-                    <input type="radio" name="period" defaultChecked className="mr-1.5 accent-[#5D1425]" />
-                    Manhã
-                  </label>
-                  <label className="flex items-center justify-center p-2.5 rounded-xl border border-stone-200 cursor-pointer hover:bg-[#FAF6ED]">
-                    <input type="radio" name="period" className="mr-1.5 accent-[#5D1425]" />
-                    Tarde
-                  </label>
-                  <label className="flex items-center justify-center p-2.5 rounded-xl border border-stone-200 cursor-pointer hover:bg-[#FAF6ED]">
-                    <input type="radio" name="period" className="mr-1.5 accent-[#5D1425]" />
-                    Noite
-                  </label>
+                <textarea
+                  rows={2}
+                  value={rescheduleReason}
+                  onChange={(e) => setRescheduleReason(e.target.value)}
+                  placeholder="Ex.: Prefiro no período da tarde após as 14h"
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#E6D4AF] text-xs bg-[#FDFBF7]"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRescheduleTarget(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600 cursor-pointer"
+                >
+                  Voltar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-[#5D1425] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Enviar Pedido</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* New Appointment Modal */}
+      {showScheduleModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 border border-[#E6D4AF] shadow-2xl space-y-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#FAF0F2] flex items-center justify-center text-[#5D1425]">
+                  <Stethoscope className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-xl text-[#480D1B]">
+                    Solicitar Agendamento
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    Clínica Vittacare • Atendimento Integrado
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(false)}
+                className="text-stone-400 hover:text-stone-700 p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateScheduleRequest} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-stone-700 block mb-1.5">
+                  Tipo de Atendimento
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      { id: 'consulta', label: 'Consulta' },
+                      { id: 'retorno', label: 'Retorno' },
+                      { id: 'exame', label: 'Exame / USG' },
+                      { id: 'teleconsulta', label: 'Teleconsulta' },
+                    ] as const
+                  ).map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setNewCategory(cat.id)}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        newCategory === cat.id
+                          ? 'bg-[#5D1425] text-white border-[#5D1425]'
+                          : 'bg-[#FDFBF7] text-stone-700 border-[#E6D4AF]'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100">
+              <div>
+                <label className="text-xs font-semibold text-stone-700 block mb-1.5">
+                  Especialidade / Profissional
+                </label>
+                <select
+                  value={newServiceType}
+                  onChange={(e) => setNewServiceType(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6D4AF] bg-[#FDFBF7] text-xs font-medium text-stone-800 focus:outline-none focus:border-[#5D1425]"
+                >
+                  <option>Consulta Pré-natal Presencial (Enf. Marcelo)</option>
+                  <option>Teleorientação de Enfermagem (Enfª. Stephanie)</option>
+                  <option>Retorno de Avaliação de Exames (Enfª. Letícia)</option>
+                  <option>Exame Ultrassom Obstétrico / Morfológico</option>
+                  <option>Consulta de Amamentação & Plano de Parto (Enfª. Bianca)</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-stone-700 block mb-1.5">
+                    Data Preferencial
+                  </label>
+                  <input
+                    type="date"
+                    value={newPrefDate}
+                    onChange={(e) => setNewPrefDate(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-[#E6D4AF] bg-[#FDFBF7] text-xs text-stone-800"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-stone-700 block mb-1.5">
+                    Período
+                  </label>
+                  <select
+                    value={newPrefPeriod}
+                    onChange={(e) =>
+                      setNewPrefPeriod(
+                        e.target.value as 'Manhã' | 'Tarde' | 'Noite'
+                      )
+                    }
+                    className="w-full px-3.5 py-2 rounded-xl border border-[#E6D4AF] bg-[#FDFBF7] text-xs text-stone-800"
+                  >
+                    <option value="Manhã">Manhã (08h - 12h)</option>
+                    <option value="Tarde">Tarde (13h - 17h)</option>
+                    <option value="Noite">Noite (18h - 20h)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-stone-700 block mb-1.5">
+                  Observações ou Queixas Principais
+                </label>
+                <textarea
+                  rows={2}
+                  value={newNotes}
+                  onChange={(e) => setNewNotes(e.target.value)}
+                  placeholder="Ex.: Gostaria de avaliar exames recentes..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#E6D4AF] bg-[#FDFBF7] text-xs text-stone-800 focus:outline-none focus:border-[#5D1425]"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowScheduleModal(false)}
-                  className="px-4 py-2.5 rounded-xl text-stone-600 hover:bg-stone-100 font-semibold cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl border border-stone-200 text-stone-600 text-xs font-semibold hover:bg-stone-50 cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-[#5D1425] hover:bg-[#741C30] text-white font-bold tracking-wide shadow-sm cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl bg-[#5D1425] hover:bg-[#741C30] text-white text-xs font-bold cursor-pointer"
                 >
-                  Confirmar Solicitação
+                  Confirmar Pedido
                 </button>
               </div>
             </form>

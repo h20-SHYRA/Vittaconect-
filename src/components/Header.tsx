@@ -1,286 +1,269 @@
 import React from 'react';
-import { PhoneCall, Bell, ShieldAlert, HeartHandshake, Smartphone, Users, Sliders, Type, LogOut, Video } from 'lucide-react';
-import { VittacareLogo } from './VittacareLogo';
-import { CLINIC_INFO } from '../data/mockData';
+import {
+  PhoneCall,
+  Video,
+  Share2,
+  Sliders,
+  Baby,
+  Flower2,
+  Stethoscope,
+  LogOut,
+  Download,
+  MessageSquare,
+  Search,
+  Bell,
+  Sparkles,
+} from 'lucide-react';
 import { usePatient } from '../context/PatientContext';
+import { useAuth } from '../context/AuthContext';
+import { useFeedback } from '../context/FeedbackContext';
+import { VittacareLogo } from './VittacareLogo';
+import { NursingCrest } from './NursingCrest';
 import { NavTab } from '../types';
 
 interface HeaderProps {
+  activeTab?: NavTab;
+  onSelectTab?: (tab: NavTab) => void;
   onOpenSOS: () => void;
-  onOpenInstall: () => void;
+  onOpenTelehealth?: () => void;
   onOpenShare: () => void;
   onOpenCustomization: () => void;
-  onSelectTab: (tab: NavTab) => void;
-  activeTab: string;
+  onOpenProfile?: () => void;
+  onOpenInstall?: () => void;
+  onOpenInstallApp?: () => void;
+  onOpenNurseChat?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
-  onOpenSOS, 
-  onOpenInstall, 
-  onOpenShare, 
+export const Header: React.FC<HeaderProps> = ({
+  onSelectTab,
+  onOpenSOS,
+  onOpenTelehealth,
+  onOpenShare,
   onOpenCustomization,
-  onSelectTab, 
-  activeTab 
+  onOpenProfile,
+  onOpenInstall,
+  onOpenInstallApp,
+  onOpenNurseChat,
 }) => {
-  const { patient, switchMode, logout } = usePatient();
-  const isWomanMode = patient?.userMode === 'saude_feminina';
-  const personName = patient?.preferredName || patient?.name?.split(' ')[0] || (isWomanMode ? 'Camila' : 'Mariana');
-  const initialLetter = personName ? personName[0].toUpperCase() : 'M';
-  const statusBadge = isWomanMode 
-    ? (patient?.cycleDurationDays ? `Ciclo ${patient.cycleDurationDays}d` : 'Saúde Mulher')
-    : (patient?.currentWeek ? `${patient.currentWeek}ª Semana` : 'Pré-natal');
+  const { patient, switchMode, logout: patientLogout } = usePatient();
+  const { userRole, logout: authLogout, loginAsDemo, isDemoSession } = useAuth();
+  const { unreadNotificationsCount, setIsSearchOpen, setIsNotificationsOpen } =
+    useFeedback();
+
+  const isPregnant = patient?.userMode !== 'saude_feminina';
+  const handleInstallClick = onOpenInstall || onOpenInstallApp;
+  const handleProfileClick =
+    onOpenProfile || (() => onSelectTab && onSelectTab('profile'));
+
+  const handleFullLogout = async () => {
+    patientLogout();
+    await authLogout();
+  };
 
   return (
-    <header className="sticky top-0 z-30 w-full bg-[#FDFBF7]/95 backdrop-blur-md border-b border-[#E6D4AF]/50 transition-all">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between">
-        {/* Brand Zone */}
-        <button
-          onClick={() => onSelectTab(isWomanMode ? 'woman_home' : 'home')}
-          className="cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B89243] rounded-lg transition-transform active:scale-[0.99] text-left"
-          aria-label="Ir para tela inicial Vittaconect"
-        >
-          <VittacareLogo size="md" />
-        </button>
+    <header className="sticky top-0 z-30 bg-[#FDFBF7]/95 backdrop-blur-md border-b border-stone-200/80 shadow-xs">
+      {/* Explicit Demo Mode Banner when in Demo Session (Section 10 compliance) */}
+      {isDemoSession && (
+        <div className="bg-amber-100/95 border-b border-amber-300 px-4 py-1 text-center flex items-center justify-center gap-2 text-[11px] font-bold text-amber-950">
+          <Sparkles className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+          <span>Modo Demonstração — Dados Fictícios</span>
+          <span className="hidden sm:inline font-normal text-amber-800">
+            • Simulação interativa para exploração das jornadas clínicas
+          </span>
+        </div>
+      )}
 
-        {/* Dynamic Navigation links for tablet & desktop */}
-        <nav className="hidden lg:flex items-center gap-4 xl:gap-5 text-xs xl:text-sm font-medium text-stone-600">
-          {isWomanMode ? (
-            <>
-              {/* WOMAN HEALTH TABS */}
-              <button
-                onClick={() => onSelectTab('woman_home')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'woman_home'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Início & Ciclo
-              </button>
-              <button
-                onClick={() => onSelectTab('cycle_tracker')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'cycle_tracker'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Rastreador de Ciclo & Ovulação
-              </button>
-              <button
-                onClick={() => onSelectTab('preventive_screening')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'preventive_screening'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Prevenção & Exames
-              </button>
-              <button
-                onClick={() => onSelectTab('woman_education')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'woman_education'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Trilhas de Saúde
-              </button>
-              <button
-                onClick={() => onSelectTab('news')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'news'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Mural Vittacare
-              </button>
-            </>
-          ) : (
-            <>
-              {/* PREGNANCY TABS */}
-              <button
-                onClick={() => onSelectTab('home')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'home'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Início
-              </button>
-              <button
-                onClick={() => onSelectTab('prenatal_card')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'prenatal_card'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Carteira Digital
-              </button>
-              <button
-                onClick={() => onSelectTab('community')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'community'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Fórum de Apoio
-              </button>
-              <button
-                onClick={() => onSelectTab('news')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'news'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Mural Vittacare
-              </button>
-              <button
-                onClick={() => onSelectTab('calendar')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'calendar'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Agenda
-              </button>
-              <button
-                onClick={() => onSelectTab('reminders')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'reminders'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Lembretes
-              </button>
-              <button
-                onClick={() => onSelectTab('symptoms')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'symptoms'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Diário
-              </button>
-              <button
-                onClick={() => onSelectTab('education')}
-                className={`transition-colors cursor-pointer py-1 border-b-2 whitespace-nowrap ${
-                  activeTab === 'education'
-                    ? 'text-[#5D1425] border-[#B89243] font-semibold'
-                    : 'text-stone-600 border-transparent hover:text-[#5D1425]'
-                }`}
-              >
-                Educação
-              </button>
-            </>
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+        {/* Brand Identity + Nursing Emblem + Mode Switcher */}
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div
+            onClick={handleProfileClick}
+            className="cursor-pointer group transition-opacity hover:opacity-95 shrink-0 flex items-center gap-2"
+          >
+            <VittacareLogo size="sm" />
+            <div className="hidden xl:flex items-center gap-1.5 pl-2 border-l border-[#E6D4AF]">
+              <NursingCrest size="sm" variant="gold" />
+            </div>
+          </div>
+
+          {/* Patient Mode Switcher: Gestante vs Saúde Feminina */}
+          <div className="flex items-center bg-[#FAF0F2] p-0.5 rounded-full border border-[#EBBEC8] shadow-2xs shrink-0">
+            <button
+              type="button"
+              onClick={() => switchMode('gestante')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                isPregnant
+                  ? 'bg-[#5D1425] text-[#E6D4AF] shadow-xs'
+                  : 'text-[#731C31] hover:bg-white/60'
+              }`}
+              title="Modo Gestante (Pré-Natal)"
+            >
+              <Baby className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Gestante</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode('saude_feminina')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                !isPregnant
+                  ? 'bg-[#5D1425] text-[#E6D4AF] shadow-xs'
+                  : 'text-[#731C31] hover:bg-white/60'
+              }`}
+              title="Modo Saúde da Mulher (Ciclo & Prevenção)"
+            >
+              <Flower2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Mulher</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Right Actions: Global Search, Notifications, Chat, Customization, Telehealth, SOS, Profile */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Global Search Button (Ctrl+K) */}
+          <button
+            type="button"
+            onClick={() => setIsSearchOpen(true)}
+            aria-label="Busca Global no Vittaconect"
+            title="Busca Rápida (Ctrl+K)"
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-full bg-white hover:bg-[#FAF6ED] text-stone-700 border border-[#E6D4AF] text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+          >
+            <Search className="w-3.5 h-3.5 text-[#8D253D]" />
+            <span className="hidden lg:inline">Buscar</span>
+          </button>
+
+          {/* Smart Notifications Center */}
+          <button
+            type="button"
+            onClick={() => setIsNotificationsOpen(true)}
+            aria-label={`Notificações (${unreadNotificationsCount} não lidas)`}
+            title="Central de Notificações e Alertas"
+            className="relative p-2 rounded-full bg-white hover:bg-[#FAF6ED] text-stone-700 border border-[#E6D4AF] transition-all cursor-pointer shadow-2xs"
+          >
+            <Bell className="w-4 h-4 text-[#8D253D]" />
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 text-white text-[9px] font-bold flex items-center justify-center">
+                {unreadNotificationsCount}
+              </span>
+            )}
+          </button>
+
+          {/* Direct Real-time Chat with the 4 Nurses */}
+          {onOpenNurseChat && (
+            <button
+              type="button"
+              onClick={onOpenNurseChat}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#5D1425] hover:bg-[#480D1B] text-[#E6D4AF] border border-[#B89243]/50 text-xs font-bold transition-all cursor-pointer shadow-xs"
+              title="Abrir Chat em Tempo Real com os 4 Enfermeiros"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-[#E6D4AF]" />
+              <span className="hidden md:inline">Chat Enfermagem</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            </button>
           )}
-        </nav>
 
-        {/* Action Zone: Sair (Logout), Accessibility, Share, Install App, SOS 24h & Patient Avatar */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Google Meet Videochamada com a Enfermagem */}
-          <a
-            href="https://meet.google.com/vit-care-obst"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-[#0B192C] bg-white border-2 border-[#0B192C] hover:bg-[#EBF3F8] active:scale-[0.98] transition-all cursor-pointer shadow-2xs"
-            title="Abrir videochamada Google Meet com a Enfermagem"
-          >
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <Video className="w-3.5 h-3.5 text-[#1E3E62]" />
-            <span className="hidden sm:inline">Google Meet</span>
-          </a>
+          {/* Switch to Professional View (Only when in Demo Mode or Staff Role) */}
+          {(isDemoSession ||
+            userRole === 'profissional' ||
+            userRole === 'administrador') && (
+            <button
+              type="button"
+              onClick={() =>
+                loginAsDemo('profissional', 'gestante', 'Enf. Marcelo')
+              }
+              className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-stone-900 hover:bg-stone-800 text-[#E6D4AF] border border-[#B89243]/40 text-[11px] font-semibold transition-all cursor-pointer"
+              title="Alternar para o Portal de Enfermagem Vittaprofessio"
+            >
+              <Stethoscope className="w-3.5 h-3.5 text-[#D0B06B]" />
+              <span>Vittaprofessio</span>
+            </button>
+          )}
 
-          {/* Logout / Sair Button (Directly returns to Registration Screen) */}
+          {/* Download / Install App */}
+          {handleInstallClick && (
+            <button
+              type="button"
+              onClick={handleInstallClick}
+              title="Baixar Aplicativo Vittaconect"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-gradient-to-r from-[#FAF0F2] to-[#FAF6ED] hover:from-[#F5DADF] hover:to-[#F3EBD8] text-[#5D1425] border border-[#E6D4AF] text-xs font-bold transition-all cursor-pointer shadow-2xs"
+            >
+              <Download className="w-3.5 h-3.5 text-[#8D253D]" />
+              <span className="hidden xl:inline">App</span>
+            </button>
+          )}
+
+          {/* Customization / Accessibility Button */}
           <button
-            onClick={() => {
-              logout();
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-[#8D253D] bg-[#FAF0F2] border border-[#EBBEC8] hover:bg-rose-100 active:scale-[0.98] transition-all cursor-pointer shadow-2xs"
-            title="Sair para a tela inicial de cadastro e alternância de modos"
-            aria-label="Sair da conta e voltar ao cadastro"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sair</span>
-          </button>
-
-          {/* Customization / Font Size & Accessibility */}
-          <button
+            type="button"
             onClick={onOpenCustomization}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold text-[#480D1B] bg-white border border-[#DEC68E] hover:bg-[#FAF6ED] transition-all cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B89243]"
-            title="Ajustar tamanho da letra e acessibilidade do app"
-            aria-label="Ajustar tamanho da letra e acessibilidade"
+            aria-label="Acessibilidade e Personalização"
+            title="Personalizar Tema, Fonte e Modo Escuro"
+            className="p-2 rounded-full bg-[#FAF6ED] hover:bg-[#F3EBD8] text-[#785B23] border border-[#E6D4AF] transition-all cursor-pointer shadow-2xs"
           >
-            <Type className="w-3.5 h-3.5 text-[#B89243]" />
-            <span className="font-serif font-bold text-xs text-[#5D1425]">A±</span>
+            <Sliders className="w-4 h-4" />
           </button>
 
-          {/* Share Access Button */}
+          {/* Share Button */}
           <button
+            type="button"
             onClick={onOpenShare}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-[#5D1425] bg-white border border-[#EBBEC8] hover:bg-[#FAF0F2] transition-all cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8D253D]"
-            title="Compartilhar acesso com acompanhante ou familiares"
+            aria-label="Compartilhar acesso"
+            title="Convidar ou Compartilhar Acesso"
+            className="hidden md:flex p-2 rounded-full bg-[#FAF6ED] hover:bg-[#F3EBD8] text-[#785B23] border border-[#E6D4AF] transition-all cursor-pointer shadow-2xs"
           >
-            <Users className="w-3.5 h-3.5 text-[#8D253D]" />
-            <span className="hidden sm:inline">Convidar</span>
-            <span className="sm:hidden">Rede</span>
+            <Share2 className="w-4 h-4" />
           </button>
 
-          {/* Install on Mobile Button */}
-          <button
-            onClick={onOpenInstall}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-[#480D1B] bg-[#FAF6ED] border border-[#E6D4AF] hover:bg-[#F3EBD8] transition-all cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B89243]"
-            title="Como baixar o app no seu celular"
-          >
-            <Smartphone className="w-3.5 h-3.5 text-[#B89243]" />
-            <span className="hidden sm:inline">Baixar</span>
-            <span>App</span>
-          </button>
+          {/* Telehealth Quick Action */}
+          {onOpenTelehealth && (
+            <button
+              type="button"
+              onClick={onOpenTelehealth}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF0F2] hover:bg-[#F5DADF] text-[#731C31] border border-[#EBBEC8] text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+            >
+              <Video className="w-3.5 h-3.5 text-[#8D253D]" />
+              <span className="hidden lg:inline">Teleconsulta</span>
+            </button>
+          )}
 
           {/* Emergency SOS Button */}
           <button
+            type="button"
             onClick={onOpenSOS}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-[#5D1425] bg-[#FAF0F2] border border-[#EBBEC8] hover:bg-[#F5DFE4] transition-all cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8D253D]"
-            title="Pronto-Atendimento Obstétrico 24h Vittacare"
+            aria-label="Acionar SOS Obstétrico de Emergência"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-sm hover:shadow transition-all cursor-pointer"
           >
-            <ShieldAlert className="w-3.5 h-3.5 text-[#8D253D]" />
-            <span className="hidden sm:inline">SOS</span>
-            <span>24h</span>
+            <PhoneCall className="w-3.5 h-3.5" />
+            <span>SOS</span>
           </button>
 
-          {/* Quick Call Clinic */}
-          <a
-            href={`tel:${CLINIC_INFO.phone24h.replace(/\D/g, '')}`}
-            className="hidden sm:flex items-center justify-center w-9 h-9 rounded-full bg-[#FAF6ED] border border-[#E6D4AF] text-[#B89243] hover:bg-[#F3EBD8] transition-colors"
-            title={`Ligar para Clínica Vittacare: ${CLINIC_INFO.phone24h}`}
+          {/* User Profile Pill */}
+          <div
+            onClick={handleProfileClick}
+            className="hidden lg:flex items-center gap-2 pl-2 border-l border-stone-200 cursor-pointer group"
           >
-            <PhoneCall className="w-4 h-4" />
-          </a>
+            <div className="text-right">
+              <p className="text-xs font-semibold text-stone-800 leading-none group-hover:text-[#8D253D] transition-colors">
+                {patient.preferredName}
+              </p>
+              <p className="text-[11px] text-[#8D253D] font-medium mt-0.5">
+                {isPregnant ? `${patient.currentWeek || 18}ª Semana` : 'Saúde Feminina'}
+              </p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F5DADF] to-[#F3EBD8] border border-[#E6D4AF] flex items-center justify-center text-[#5D1425] font-serif font-bold text-sm shadow-inner">
+              {patient.preferredName?.[0] || 'M'}
+            </div>
+          </div>
 
-          {/* Patient Avatar / Mini Badge */}
+          {/* Prominent Logout Button (Sair) */}
           <button
-            onClick={() => onSelectTab('profile')}
-            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-stone-100 transition-colors cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B89243]"
-            title={`Ver Perfil de ${personName}`}
+            type="button"
+            onClick={handleFullLogout}
+            aria-label="Sair da conta"
+            title="Sair / Trocar Conta ou Perfil"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF0F2] hover:bg-rose-100 text-[#8D253D] border border-[#EBBEC8] text-xs font-bold transition-colors cursor-pointer shadow-2xs"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#DEC68E] to-[#B89243] flex items-center justify-center text-white font-serif font-bold text-sm shadow-xs border border-white">
-              {initialLetter}
-            </div>
-            <div className="hidden lg:flex flex-col">
-              <span className="text-xs font-semibold text-[#480D1B] leading-none">
-                {personName}
-              </span>
-              <span className="text-[10px] text-stone-500 font-medium">{statusBadge}</span>
-            </div>
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sair</span>
           </button>
         </div>
       </div>

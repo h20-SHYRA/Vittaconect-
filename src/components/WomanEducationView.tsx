@@ -18,8 +18,11 @@ import {
 } from 'lucide-react';
 import { WOMAN_EDUCATIONAL_ARTICLES, CLINIC_INFO } from '../data/mockData';
 import { WomanEducationalArticle } from '../types';
+import { useFeedback } from '../context/FeedbackContext';
+import { EducationalClinicalBanner } from './ui';
 
 export const WomanEducationView: React.FC = () => {
+  const { showToast } = useFeedback();
   const [selectedTrack, setSelectedTrack] = useState<string>('all');
   const [selectedFormat, setSelectedFormat] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,7 +48,11 @@ export const WomanEducationView: React.FC = () => {
       navigator.share({ title: art.title, text }).catch(() => {});
     } else {
       navigator.clipboard.writeText(text);
-      alert('Link do conteúdo copiado para compartilhar!');
+      showToast({
+        title: 'Conteúdo Copiado!',
+        description: 'O resumo do conteúdo educativo foi copiado para a área de transferência.',
+        tone: 'success',
+      });
     }
   };
 
@@ -260,6 +267,9 @@ export const WomanEducationView: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* Aviso Educativo — Não substitui avaliação clínica individual (Section 14) */}
+      <EducationalClinicalBanner variant="patient" />
 
       {/* ARTICLE READER / DETAIL MODAL */}
       {activeArticle && (

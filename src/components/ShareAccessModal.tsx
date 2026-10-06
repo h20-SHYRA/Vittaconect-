@@ -84,10 +84,7 @@ export const ShareAccessModal: React.FC<ShareAccessModalProps> = ({ onClose }) =
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleWhatsAppShare = () => {
-    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(inviteMessage)}`;
-    window.open(url, '_blank');
-  };
+  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(inviteMessage)}`;
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,14 +169,16 @@ export const ShareAccessModal: React.FC<ShareAccessModalProps> = ({ onClose }) =
           <div className="space-y-4">
             {/* Quick Share Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* WhatsApp Button */}
-              <button
-                onClick={handleWhatsAppShare}
+              {/* WhatsApp Link */}
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noreferrer"
                 className="py-3.5 px-4 rounded-2xl bg-[#3B744C] hover:bg-[#336443] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-[0.98] cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4 fill-current" />
                 <span>Enviar pelo WhatsApp</span>
-              </button>
+              </a>
 
               {/* Copy Link Button */}
               <button

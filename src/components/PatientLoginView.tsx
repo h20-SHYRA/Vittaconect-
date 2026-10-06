@@ -32,18 +32,21 @@ import {
   HandHeart,
   Type
 } from 'lucide-react';
-import { useAuth, RESTRICTED_PROFESSIONAL_CODE } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { usePatient, calculateDueDateFromWeeks } from '../context/PatientContext';
 import { useCustomization } from '../context/CustomizationContext';
 import { VittacareLogo } from './VittacareLogo';
 import { NursingCrest } from './NursingCrest';
 import { UserRole, UserMode } from '../types';
+import { verifyProfessionalCredential, isDemoAllowedInEnvironment } from '../services/security/authGateway';
 
 export const PatientLoginView: React.FC = () => {
   const { 
     currentUser, 
     signInWithGoogle, 
-    registerUserProfile, 
+    registerUserProfile,
+    loginAsDemo,
+    appEnvironment,
     loading: authLoading 
   } = useAuth();
   const { registerOrUpdatePatient } = usePatient();
@@ -105,7 +108,9 @@ export const PatientLoginView: React.FC = () => {
   const [accessibilityNotes, setAccessibilityNotes] = useState<string>('');
   const [isSpeakingGuide, setIsSpeakingGuide] = useState<boolean>(false);
 
-  // UI states
+  // UI states & Guided Onboarding Consents (Vittaconect 2.0)
+  const [consentDataLgpd, setConsentDataLgpd] = useState<boolean>(true);
+  const [consentMedicalDisclaimer, setConsentMedicalDisclaimer] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -210,9 +215,11 @@ export const PatientLoginView: React.FC = () => {
       }
 
       const trimmedCode = professionalCode.trim();
-      if (trimmedCode !== RESTRICTED_PROFESSIONAL_CODE) {
+      const verification = await verifyProfessionalCredential(trimmedCode, councilNumber);
+      if (!verification.authorized) {
         setErrorMessage(
-          'Código de autorização profissional incorreto ou não reconhecido. O acesso ao Vittaprofessio é restrito à equipe autorizada da Clínica Vittacare.'
+          verification.message ||
+            'Credencial institucional inválida ou não reconhecida. O acesso ao Vittaprofessio é restrito à equipe autorizada da Clínica Vittacare.'
         );
         return;
       }
@@ -222,6 +229,13 @@ export const PatientLoginView: React.FC = () => {
         setErrorMessage('Por favor, informe a sua especialidade de enfermagem.');
         return;
       }
+    }
+
+    if (!consentDataLgpd || !consentMedicalDisclaimer) {
+      setErrorMessage(
+        'Para concluir o cadastro no Vittaconect 2.0, confirme o consentimento de proteção de dados (LGPD) e o termo de orientação educativa/clínica.'
+      );
+      return;
     }
 
     // Validation for Patient
@@ -741,34 +755,36 @@ export const PatientLoginView: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Restricted Access Code */}
+                    {/* Institutional Access Credential (Validated via AuthGateway) */}
                     <div className="p-4 rounded-2xl vitta-pearl-white-card space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                           <KeyRound className="w-4 h-4 text-[#144272]" />
                           <label className="text-xs font-bold text-[#0A2647] uppercase tracking-wider">
-                            Código de Autorização Institucional *
+                            Credencial Institucional / Convite COREN *
                           </label>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setProfessionalCode(RESTRICTED_PROFESSIONAL_CODE)}
-                          className="text-[10px] text-white vitta-metallic-blue-badge px-2.5 py-1 rounded-lg font-bold cursor-pointer"
-                        >
-                          Inserir Chave Autorizada
-                        </button>
+                        {isDemoAllowedInEnvironment() && (
+                          <button
+                            type="button"
+                            onClick={() => setProfessionalCode('COREN-HOMOLOGADO-2026')}
+                            className="text-[10px] text-white vitta-metallic-blue-badge px-2.5 py-1 rounded-lg font-bold cursor-pointer"
+                          >
+                            Preencher Token de Homologação
+                          </button>
+                        )}
                       </div>
 
                       <input
                         type="password"
-                        placeholder="Digite o código da equipe (vittaprofessio26/170705)"
+                        placeholder="Informe o token institucional fornecido pela coordenação"
                         required
                         value={professionalCode}
                         onChange={(e) => setProfessionalCode(e.target.value)}
                         className="w-full px-3.5 py-2.5 rounded-xl border-2 border-[#144272] font-mono text-xs sm:text-sm focus:outline-none bg-white text-[#0A2647]"
                       />
                       <span className="text-[10px] text-[#144272] font-medium block">
-                        Chave privativa da equipe para homologação no banco de dados.
+                        Validação criptográfica de segurança (Ambiente: {appEnvironment.toUpperCase()}). Nenhum código sensível é exposto publicamente.
                       </span>
                     </div>
                   </div>
@@ -1434,8 +1450,38 @@ export const PatientLoginView: React.FC = () => {
                   </div>
                 )}
 
+                {/* GUIDED ONBOARDING: LGPD DATA CONSENT & CLINICAL DISCLAIMER */}
+                <div className="p-4 rounded-2xl bg-[#FAF6ED] border border-[#E6D4AF] space-y-2.5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#480D1B]">
+                    <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>Termo de Privacidade (LGPD) & Responsabilidade Clínica</span>
+                  </div>
+                  <label className="flex items-start gap-2.5 text-xs text-stone-700 cursor-pointer leading-relaxed">
+                    <input
+                      type="checkbox"
+                      checked={consentDataLgpd}
+                      onChange={(e) => setConsentDataLgpd(e.target.checked)}
+                      className="mt-0.5 rounded accent-[#5D1425]"
+                    />
+                    <span>
+                      Autorizo o tratamento seguro e criptografado dos meus dados de saúde exclusivamente para acompanhamento pela equipe da Clínica Vittacare (LGPD).
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2.5 text-xs text-stone-700 cursor-pointer leading-relaxed">
+                    <input
+                      type="checkbox"
+                      checked={consentMedicalDisclaimer}
+                      onChange={(e) => setConsentMedicalDisclaimer(e.target.checked)}
+                      className="mt-0.5 rounded accent-[#5D1425]"
+                    />
+                    <span>
+                      Estou ciente de que os conteúdos educativos e alertas do Vittaconect têm caráter informativo de apoio e <strong>não substituem avaliação médica ou de enfermagem presencial</strong>.
+                    </span>
+                  </label>
+                </div>
+
                 {/* SUBMIT BUTTON: METALLIC SAPPHIRE BLUE FOR PROFISSIONAL OR BOUTIQUE MARSALA FOR PACIENTE */}
-                <div className="pt-2">
+                <div className="pt-2 space-y-3">
                   <button
                     type="submit"
                     disabled={isSubmitting || authLoading}
@@ -1454,6 +1500,47 @@ export const PatientLoginView: React.FC = () => {
                     </span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
+
+                  {/* EXPLICITLY IDENTIFIED DEMO MODE ACCESS (Only when allowed in environment) */}
+                  {isDemoAllowedInEnvironment() && (
+                    <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300/80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                          Modo Demonstração — Dados Fictícios
+                        </span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-200/70 text-amber-900">
+                          Ambiente {appEnvironment.toUpperCase()}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-800 leading-relaxed">
+                        Explore rapidamente as jornadas completas do Vittaconect 2.0 com dados clínicos simulados:
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => loginAsDemo('paciente', 'gestante')}
+                          className="py-2 px-3 rounded-xl bg-white hover:bg-[#FAF0F2] text-[#5D1425] border border-[#EBBEC8] text-xs font-bold transition-all cursor-pointer"
+                        >
+                          🤰 Demo Gestante
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => loginAsDemo('paciente', 'saude_feminina')}
+                          className="py-2 px-3 rounded-xl bg-white hover:bg-[#FAF6ED] text-[#480D1B] border border-[#E6D4AF] text-xs font-bold transition-all cursor-pointer"
+                        >
+                          🌸 Demo Saúde Mulher
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => loginAsDemo('profissional', 'gestante', 'Enf. Marcelo')}
+                          className="py-2 px-3 rounded-xl vitta-metallic-blue-badge text-white text-xs font-bold transition-all cursor-pointer"
+                        >
+                          🩺 Demo Vittaprofessio
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </form>
             </div>

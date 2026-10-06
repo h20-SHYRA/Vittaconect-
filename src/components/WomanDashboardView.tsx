@@ -1,313 +1,536 @@
-import React from 'react';
-import { 
-  Calendar, 
-  Heart, 
-  Sparkles, 
-  ShieldCheck, 
-  FileText, 
-  BookOpen, 
-  Activity, 
-  Clock, 
-  ChevronRight, 
-  Droplet, 
-  AlertCircle, 
+import React, { useState, useEffect } from 'react';
+import {
+  Calendar,
+  ShieldCheck,
+  FileText,
+  BookOpen,
+  Activity,
+  ChevronRight,
+  AlertCircle,
   ArrowUpRight,
-  Sun,
-  UserCheck,
-  CheckCircle2,
-  PhoneCall
+  Bell,
+  MessageSquare,
 } from 'lucide-react';
 import { usePatient } from '../context/PatientContext';
-import { INITIAL_PREVENTIVE_EXAMS, CLINIC_INFO } from '../data/mockData';
+import { useFeedback } from '../context/FeedbackContext';
+import {
+  INITIAL_PREVENTIVE_EXAMS,
+  INITIAL_WOMAN_REMINDERS,
+} from '../data/mockData';
 import { NavTab } from '../types';
+import { DailyCheckinPanel } from './patient/DailyCheckinPanel';
+import {
+  subscribeToRealtimeChat,
+  RealtimeChatMessage,
+} from '../services/realtimeChat';
+import { EducationalClinicalBanner } from './ui';
 
 interface WomanDashboardViewProps {
   onNavigate: (tab: NavTab) => void;
   onOpenSOS?: () => void;
+  onOpenNurseChat?: () => void;
 }
 
-export const WomanDashboardView: React.FC<WomanDashboardViewProps> = ({ onNavigate, onOpenSOS }) => {
-  const { patient, logout } = usePatient();
+export const WomanDashboardView: React.FC<WomanDashboardViewProps> = ({
+  onNavigate,
+  onOpenSOS,
+  onOpenNurseChat,
+}) => {
+  const { patient } = usePatient();
+  const { showToast } = useFeedback();
+
+  const [checkedReminders, setCheckedReminders] = useState<
+    Record<string, boolean>
+  >({});
+  const [recentMessages, setRecentMessages] = useState<RealtimeChatMessage[]>(
+    []
+  );
+
+  useEffect(() => {
+    const unsub = subscribeToRealtimeChat((msgs) => {
+      setRecentMessages(msgs.slice(-2).reverse());
+    });
+    return () => unsub();
+  }, []);
 
   const cycleDays = patient?.cycleDurationDays || 28;
-  const lastPeriod = patient?.lastPeriodDate ? new Date(patient.lastPeriodDate) : new Date(Date.now() - 14 * 86400000);
-  
-  // Calculate current cycle day
+  const lastPeriod = patient?.lastPeriodDate
+    ? new Date(patient.lastPeriodDate)
+    : new Date(Date.now() - 14 * 86400000);
+
   const today = new Date();
   const diffTime = Math.abs(today.getTime() - lastPeriod.getTime());
-  const currentCycleDay = Math.min(cycleDays, Math.max(1, Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1));
+  const currentCycleDay = Math.min(
+    cycleDays,
+    Math.max(1, Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1)
+  );
 
-  // Determine current cycle phase
   let phaseName = 'Fase Folicular';
-  let phaseDescription = 'Energia e disposição em alta com elevação progressiva do estrogênio.';
-  let fertilityStatus = 'Janela Fértil';
-  let daysUntilPeriod = Math.max(1, cycleDays - currentCycleDay);
+  let phaseDescription =
+    'Energia e disposição em alta com elevação progressiva do estrogênio.';
+  let fertilityStatus = 'Janela Fértil Estimada';
+  const daysUntilPeriod = Math.max(1, cycleDays - currentCycleDay);
 
   if (currentCycleDay <= (patient?.periodDurationDays || 5)) {
     phaseName = 'Fase Menstrual';
-    phaseDescription = 'Dias de fluxo. Priorize repouso, hidratação e alimentos quentes e reconfortantes.';
-    fertilityStatus = 'Baixa probabilidade';
+    phaseDescription =
+      'Dias de fluxo. Priorize repouso, hidratação e alimentos quentes e reconfortantes.';
+    fertilityStatus = 'Baixa Probabilidade Estimada';
   } else if (currentCycleDay >= 12 && currentCycleDay <= 16) {
-    phaseName = 'Janela Fértil & Ovulação';
-    phaseDescription = 'Pico de estrogênio e liberação do óvulo. Momento ideal para quem planeja engravidar.';
-    fertilityStatus = 'Alta Probabilidade de Gravidez';
+    phaseName = 'Janela Fértil & Ovulação Estimada';
+    phaseDescription =
+      'Estimativa educativa do período ovulatório baseada na duração média do seu ciclo.';
+    fertilityStatus = 'Janela Fértil Ativa';
   } else if (currentCycleDay > 16) {
     phaseName = 'Fase Lútea';
-    phaseDescription = 'Aumento da progesterona. O corpo se prepara para um novo ciclo ou implantação.';
-    fertilityStatus = 'Pós-ovulação';
+    phaseDescription =
+      'Aumento fisiológico da progesterona. Observe sinais como retenção hídrica ou sensibilidade.';
+    fertilityStatus = 'Pós-Ovulação';
   }
 
-  const urgentExams = INITIAL_PREVENTIVE_EXAMS.filter((e) => e.status === 'atrasado' || e.status === 'proximo_vencer');
+  const urgentExams = INITIAL_PREVENTIVE_EXAMS.filter(
+    (e) => e.status === 'atrasado' || e.status === 'proximo_vencer'
+  );
+
+  const toggleQuickReminder = (id: string, title: string) => {
+    const next = !checkedReminders[id];
+    setCheckedReminders((prev) => ({ ...prev, [id]: next }));
+    if (next) {
+      showToast({
+        title: 'Lembrete concluído',
+        description: `"${title}" foi marcado como concluído hoje.`,
+        tone: 'success',
+      });
+    }
+  };
 
   return (
-    <div className="space-y-6 sm:space-y-8 animate-fadeIn pb-12">
-      {/* Top Welcome Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF0F2] border border-[#EBBEC8] text-[#8D253D] text-xs font-semibold uppercase tracking-wider mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-[#B89243]" />
-            <span>Saúde Feminina & Prevenção Ginecológica • Clínica Vittacare</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#480D1B]">
-            Olá, {patient?.preferredName || 'Camila'}!
-          </h1>
-          <p className="text-xs sm:text-sm text-stone-600 mt-1">
-            Seu portal de autoconhecimento, monitoramento do ciclo menstrual e exames preventivos de rotina.
-          </p>
-        </div>
-
-        {/* Exit to Registration Screen */}
-        <div className="flex items-center gap-2 self-start md:self-auto">
-          <button
-            onClick={() => logout()}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white border border-[#EBBEC8] hover:bg-[#FAF0F2] text-[#8D253D] text-xs font-bold shadow-2xs transition-all cursor-pointer"
-            title="Sair para a tela inicial de cadastro e escolher outro modo"
-          >
-            <span>Sair / Trocar de Modo</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Cycle Highlight Card */}
-      <div className="bg-gradient-to-br from-[#5D1425] via-[#741C30] to-[#480D1B] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-[#DEC68E]/30">
-        <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full border-8 border-white/5 pointer-events-none" />
-        <div className="absolute right-12 bottom-[-40px] w-48 h-48 rounded-full border-4 border-[#DEC68E]/10 pointer-events-none" />
-
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-          {/* Cycle Dial & Current Day */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center gap-3">
-              <span className="px-3 py-1 rounded-full bg-white/15 text-[#E6D4AF] text-xs font-bold font-mono tracking-wider border border-white/20">
-                {phaseName.toUpperCase()}
+    <div className="space-y-6 sm:space-y-7 animate-fadeIn pb-12">
+      {/* =====================================================================
+          1. SAUDAÇÃO & RESUMO DO CICLO FEMININO
+         ===================================================================== */}
+      <section className="bg-gradient-to-br from-[#5D1425] via-[#741C30] to-[#480D1B] rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden border border-[#DEC68E]/30">
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <div className="lg:col-span-8 space-y-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-[#E6D4AF]">
+              <span className="font-semibold uppercase tracking-wider">
+                Saúde Integral da Mulher · Clínica Vittacare
               </span>
-              <span className="text-xs text-[#FAF6ED]/80">
-                Ciclo de {cycleDays} dias
-              </span>
+              <span aria-hidden="true">·</span>
+              <span>{phaseName}</span>
+              <span aria-hidden="true">·</span>
+              <span>Ciclo de {cycleDays} dias</span>
             </div>
 
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl sm:text-5xl font-serif font-bold text-white">
-                  Dia {currentCycleDay}
-                </span>
-                <span className="text-sm text-[#E6D4AF]">do ciclo</span>
-              </div>
-              <p className="text-xs sm:text-sm text-stone-200 mt-2 max-w-xl leading-relaxed">
-                {phaseDescription}
-              </p>
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white leading-tight">
+              Olá, {patient?.preferredName || 'Camila'}!{' '}
+              <span className="text-[#E6D4AF] font-normal italic">
+                Hoje é o Dia {currentCycleDay} do seu ciclo.
+              </span>
+            </h1>
 
-            {/* Quick Metrics */}
+            <p className="text-xs sm:text-sm text-stone-200 max-w-xl leading-relaxed">
+              {phaseDescription}
+            </p>
+
             <div className="pt-2 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-              <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
-                <span className="text-[10px] text-stone-300 block">Previsão da Menstruação</span>
-                <strong className="text-white text-sm">Em {daysUntilPeriod} dias</strong>
+              <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+                <span className="text-[10px] text-stone-300 block">
+                  Próximo Fluxo Estimado
+                </span>
+                <strong className="text-white text-sm">
+                  Em {daysUntilPeriod} dias
+                </strong>
               </div>
-              <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
-                <span className="text-[10px] text-stone-300 block">Janela Fértil</span>
-                <strong className="text-[#E6D4AF] text-sm">{fertilityStatus}</strong>
+              <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+                <span className="text-[10px] text-stone-300 block">
+                  Estimativa Fértil (Educativa)
+                </span>
+                <strong className="text-[#E6D4AF] text-sm">
+                  {fertilityStatus}
+                </strong>
               </div>
-              <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-xs border border-white/10 col-span-2 sm:col-span-1">
-                <span className="text-[10px] text-stone-300 block">Contraceptivo Atual</span>
-                <strong className="text-white text-xs truncate block">{patient?.contraceptiveMethod || 'Preservativo'}</strong>
+              <div className="bg-white/10 p-3 rounded-xl border border-white/10 col-span-2 sm:col-span-1">
+                <span className="text-[10px] text-stone-300 block">
+                  Planejamento / Método
+                </span>
+                <strong className="text-white text-xs truncate block">
+                  {patient?.contraceptiveMethod || 'Preservativo'}
+                </strong>
               </div>
             </div>
           </div>
 
-          {/* Action Call to Track */}
-          <div className="lg:border-l lg:border-white/15 lg:pl-6 space-y-3">
-            <div className="p-4 rounded-2xl bg-white/10 border border-white/15 space-y-2">
+          <div className="lg:col-span-4 lg:border-l lg:border-white/15 lg:pl-6 space-y-3">
+            <div className="p-4 rounded-2xl bg-white/10 border border-white/15 space-y-2.5">
               <span className="text-[11px] font-bold text-[#E6D4AF] uppercase tracking-wider block">
-                Diário do Ciclo de Hoje
+                Monitoramento do Ciclo
               </span>
-              <p className="text-xs text-stone-200">
-                Registre fluxo, cólica, humor ou muco cervical para aprimorar suas previsões.
+              <p className="text-xs text-stone-200 leading-relaxed">
+                Registre fluxo, sintomas, humor e método contraceptivo no seu calendário menstrual.
               </p>
               <button
+                type="button"
                 onClick={() => onNavigate('cycle_tracker')}
-                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#E6D4AF] to-[#DEC68E] text-[#480D1B] font-bold text-xs hover:brightness-105 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                className="w-full py-2.5 px-3 rounded-xl bg-[#E6D4AF] hover:bg-[#DEC68E] text-[#480D1B] font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <span>Abrir Rastreador de Ciclo</span>
+                <span>Abrir Calendário do Ciclo</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Main Feature Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Card 1: Calendário e Monitoramento do Ciclo Menstrual */}
-        <button
-          onClick={() => onNavigate('cycle_tracker')}
-          className="p-5 rounded-3xl bg-white border-2 border-[#E6D4AF] hover:border-[#8D253D] hover:shadow-md transition-all text-left flex flex-col justify-between cursor-pointer group relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#FAF0F2] to-[#EBBEC8] text-[#8D253D] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-              <Calendar className="w-6 h-6 stroke-[2]" />
-            </div>
-            <span className="text-[10px] font-bold text-[#8D253D] bg-[#FAF0F2] px-2.5 py-1 rounded-full border border-[#EBBEC8]">
-              Previsão Inteligente
-            </span>
+      {/* =====================================================================
+          2. ALGO QUE PRECISA DA ATENÇÃO DA PACIENTE
+         ===================================================================== */}
+      <section
+        aria-label="Atenção prioritária"
+        className="rounded-2xl bg-white border-l-4 border-l-[#B89243] border border-[#E6D4AF] p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-[#FAF6ED] text-[#9B7731] flex items-center justify-center shrink-0 mt-0.5">
+            <AlertCircle className="w-5 h-5" />
           </div>
-
-          <div className="space-y-1.5">
-            <h3 className="font-serif font-bold text-lg text-[#480D1B] group-hover:text-[#5D1425] transition-colors">
-              Rastreador de Ciclo & Ovulação
-            </h3>
-            <p className="text-xs text-stone-600 line-clamp-2">
-              Acompanhe seu fluxo, identifique o período fértil e entenda as oscilações hormonais do seu corpo.
-            </p>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-stone-200/60 flex items-center justify-between text-xs font-bold text-[#8D253D]">
-            <span>Acessar Monitoramento</span>
-            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </button>
-
-        {/* Card 2: Prevenção e Exames Ginecológicos de Rotina */}
-        <button
-          onClick={() => onNavigate('preventive_screening')}
-          className="p-5 rounded-3xl bg-white border-2 border-[#E6D4AF] hover:border-[#B89243] hover:shadow-md transition-all text-left flex flex-col justify-between cursor-pointer group relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#FAF6ED] to-[#E6D4AF] text-[#9B7731] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-              <ShieldCheck className="w-6 h-6 stroke-[2]" />
-            </div>
-            {urgentExams.length > 0 ? (
-              <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-                {urgentExams.length} exame a agendar
-              </span>
-            ) : (
-              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                Exames em Dia
-              </span>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <h3 className="font-serif font-bold text-lg text-[#480D1B] group-hover:text-[#5D1425] transition-colors">
-              Carteira de Rastreio Preventivo
-            </h3>
-            <p className="text-xs text-stone-600 line-clamp-2">
-              Papanicolau, Mamografia, Ultrassom, Autoexame das mamas e exames laboratoriais periódicos.
-            </p>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-stone-200/60 flex items-center justify-between text-xs font-bold text-[#9B7731]">
-            <span>Ver Meus Exames</span>
-            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </button>
-
-        {/* Card 3: Biblioteca de Conteúdos e Educação em Saúde */}
-        <button
-          onClick={() => onNavigate('woman_education')}
-          className="p-5 rounded-3xl bg-white border-2 border-[#E6D4AF] hover:border-[#5D1425] hover:shadow-md transition-all text-left flex flex-col justify-between cursor-pointer group relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#FAF0F2] via-white to-[#FAF6ED] text-[#480D1B] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-              <BookOpen className="w-6 h-6 stroke-[2]" />
-            </div>
-            <span className="text-[10px] font-bold text-[#8D253D] bg-[#FAF0F2] px-2.5 py-1 rounded-full border border-[#EBBEC8]">
-              Trilhas Vittacare
-            </span>
-          </div>
-
-          <div className="space-y-1.5">
-            <h3 className="font-serif font-bold text-lg text-[#480D1B] group-hover:text-[#5D1425] transition-colors">
-              Educação em Saúde Feminina
-            </h3>
-            <p className="text-xs text-stone-600 line-clamp-2">
-              Artigos, podcasts rápidos e vídeos sobre saúde íntima, fertilidade, menopausa e nutrição.
-            </p>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-stone-200/60 flex items-center justify-between text-xs font-bold text-[#480D1B]">
-            <span>Explorar Trilhas</span>
-            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </button>
-      </div>
-
-      {/* Routine Checkup Preventive Alert Strip */}
-      <div className="p-5 rounded-3xl bg-white border border-[#E6D4AF] shadow-2xs space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-200">
-              <Clock className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-serif font-bold text-base text-[#480D1B]">
-                Próximos Cuidados Preventivos Recomendados
-              </h3>
-              <span className="text-xs text-stone-500">
-                Acompanhamento periódico da Clínica Vittacare para sua idade ({patient?.age || 32} anos)
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold text-[#9B7731] uppercase tracking-wider">
+              <span>Atenção Preventiva</span>
+              <span aria-hidden="true">·</span>
+              <span className="text-stone-500 font-normal normal-case">
+                Rastreio ginecológico periódico ({patient?.age || 32} anos)
               </span>
             </div>
+            <h2 className="font-serif font-bold text-base sm:text-lg text-[#480D1B] mt-0.5">
+              {urgentExams.length > 0
+                ? `Você possui ${urgentExams.length} exame(s) preventivo(s) próximos do vencimento ou pendentes`
+                : 'Seus exames preventivos principais estão em dia!'}
+            </h2>
+            <p className="text-xs text-stone-600 mt-0.5">
+              {urgentExams[0]?.name
+                ? `Destaque: ${urgentExams[0].name} (${urgentExams[0].nextDueDate}). Mantenha seu rastreio atualizado.`
+                : 'Continue acompanhando seus resultados e orientações na carteira preventiva.'}
+            </p>
           </div>
+        </div>
 
+        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
           <button
+            type="button"
             onClick={() => onNavigate('preventive_screening')}
-            className="text-xs font-bold text-[#8D253D] hover:underline cursor-pointer hidden sm:block"
+            className="px-4 py-2 rounded-xl bg-[#5D1425] hover:bg-[#741C30] text-white text-xs font-bold transition-colors cursor-pointer"
           >
-            Ver todos ({INITIAL_PREVENTIVE_EXAMS.length})
+            Revisar Preventivos
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate('documents')}
+            className="px-3.5 py-2 rounded-xl bg-[#FAF6ED] hover:bg-[#F3EBD8] text-[#480D1B] border border-[#E6D4AF] text-xs font-bold transition-colors cursor-pointer"
+          >
+            Meus Laudos
+          </button>
+        </div>
+      </section>
+
+      {/* =====================================================================
+          3. PRÓXIMA CONSULTA & AGENDA GINECOLÓGICA
+         ===================================================================== */}
+      <section aria-label="Próxima consulta">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-serif font-bold text-[#480D1B]">
+            Próxima Consulta & Check-up
+          </h2>
+          <button
+            type="button"
+            onClick={() => onNavigate('calendar')}
+            className="text-xs font-bold text-[#8D253D] hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <span>Ver Agenda Completa</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {INITIAL_PREVENTIVE_EXAMS.slice(0, 3).map((exam) => (
-            <div
-              key={exam.id}
-              className="p-3.5 rounded-2xl bg-stone-50 border border-stone-100 flex flex-col justify-between space-y-2"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <strong className="text-xs font-serif text-stone-800 line-clamp-1">
-                  {exam.name}
-                </strong>
-                <span
-                  className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                    exam.status === 'em_dia'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : exam.status === 'proximo_vencer'
-                      ? 'bg-amber-100 text-amber-800'
-                      : 'bg-rose-100 text-rose-800'
-                  }`}
-                >
-                  {exam.status === 'em_dia' ? 'Em dia' : exam.status === 'proximo_vencer' ? 'Próximo' : 'Atrasado'}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-5 rounded-2xl bg-white border border-[#E6D4AF] flex flex-col justify-between shadow-2xs">
+            <div>
+              <div className="flex items-center justify-between text-xs text-stone-500">
+                <span className="font-bold text-[#5D1425] uppercase tracking-wider">
+                  Consulta Ginecológica · Confirmada
+                </span>
+                <span className="font-semibold text-[#480D1B]">
+                  15/10 às 14:00
                 </span>
               </div>
-              <p className="text-[11px] text-stone-500 line-clamp-2">
-                {exam.description}
+              <h3 className="font-serif text-xl font-bold text-[#480D1B] mt-1.5">
+                Avaliação Ginecológica & Revisão de Exames
+              </h3>
+              <p className="text-xs text-stone-600 mt-1">
+                Enfª. Letícia & Equipe Médica Vittacare · Unidade Jardins
               </p>
-              <span className="text-[10px] text-stone-400 block pt-1 border-t border-stone-200/40">
-                Próximo: {exam.nextDueDate}
+            </div>
+            <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between">
+              <span className="text-xs text-stone-500">
+                Preparo: Evitar duchas intravaginais 48h antes
+              </span>
+              <button
+                type="button"
+                onClick={() => onNavigate('calendar')}
+                className="text-xs font-bold text-[#5D1425] hover:text-[#8D253D] flex items-center gap-1 cursor-pointer"
+              >
+                <span>Gerenciar</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-[#FAF0F2] border border-[#EBBEC8] flex flex-col justify-between shadow-2xs">
+            <div>
+              <div className="flex items-center justify-between text-xs text-[#8D253D]">
+                <span className="font-bold uppercase tracking-wider">
+                  Histórico & Rastreio Preventivo
+                </span>
+                <span>{INITIAL_PREVENTIVE_EXAMS.length} exames monitorados</span>
+              </div>
+              <h3 className="font-serif text-xl font-bold text-[#480D1B] mt-1.5">
+                Papanicolaou, Mamografia & Sorologias
+              </h3>
+              <p className="text-xs text-stone-600 mt-1">
+                Acompanhe a periodicidade recomendada para sua faixa etária e compartilhe laudos com a enfermagem.
+              </p>
+            </div>
+            <div className="mt-4 pt-3 border-t border-[#EBBEC8]/60 flex items-center justify-between">
+              <span className="text-xs text-[#5D1425] font-medium">
+                Protocolo Febrasgo / MS
+              </span>
+              <button
+                type="button"
+                onClick={() => onNavigate('preventive_screening')}
+                className="text-xs font-bold text-[#5D1425] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>Abrir Prevenção</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================================
+          4. LEMBRETES & 5. MENSAGENS DA ENFERMAGEM
+         ===================================================================== */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* 4. Lembretes */}
+        <div className="lg:col-span-6 bg-white rounded-2xl p-5 border border-[#E6D4AF] shadow-2xs flex flex-col justify-between space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Bell className="w-4 h-4 text-[#8D253D]" />
+                <h2 className="font-serif font-bold text-lg text-[#480D1B]">
+                  Lembretes de Saúde Feminina
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate('reminders')}
+                className="text-xs font-bold text-[#8D253D] hover:underline cursor-pointer"
+              >
+                Ver todos ({INITIAL_WOMAN_REMINDERS.length})
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {INITIAL_WOMAN_REMINDERS.slice(0, 3).map((rem) => {
+                const isDone = Boolean(checkedReminders[rem.id]);
+                return (
+                  <div
+                    key={rem.id}
+                    onClick={() => toggleQuickReminder(rem.id, rem.title)}
+                    className={`p-3 rounded-xl border transition-all flex items-start justify-between gap-3 cursor-pointer ${
+                      isDone
+                        ? 'bg-stone-50 border-stone-200 text-stone-400'
+                        : 'bg-[#FDFBF7] border-[#E6D4AF] hover:border-[#8D253D]'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={isDone}
+                        onChange={() => {}}
+                        className="mt-0.5 rounded accent-[#5D1425]"
+                      />
+                      <div className="min-w-0">
+                        <p
+                          className={`text-xs font-bold truncate ${
+                            isDone ? 'line-through' : 'text-[#480D1B]'
+                          }`}
+                        >
+                          {rem.title}
+                        </p>
+                        <p className="text-[11px] text-stone-500 truncate mt-0.5">
+                          {rem.professionalName} ·{' '}
+                          {rem.medicationSchedule || rem.categoryLabel}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-semibold text-[#8D253D] shrink-0">
+                      {isDone ? 'Feito' : 'Hoje'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Mensagens */}
+        <div className="lg:col-span-6 bg-white rounded-2xl p-5 border border-[#E6D4AF] shadow-2xs flex flex-col justify-between space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-[#8D253D]" />
+                <h2 className="font-serif font-bold text-lg text-[#480D1B]">
+                  Mensagens da Enfermagem
+                </h2>
+              </div>
+              <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Equipe Disponível
               </span>
             </div>
-          ))}
+
+            <div className="space-y-2.5">
+              {recentMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  onClick={onOpenNurseChat}
+                  className="p-3 rounded-xl bg-[#FAF0F2]/60 hover:bg-[#FAF0F2] border border-[#EBBEC8] transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center justify-between text-[11px] text-stone-500 mb-1">
+                    <strong className="text-[#5D1425]">{msg.senderName}</strong>
+                    <span>{msg.createdAt}</span>
+                  </div>
+                  <p className="text-xs text-stone-700 line-clamp-2 leading-relaxed">
+                    {msg.text}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-stone-100 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-stone-500">
+              Tire dúvidas sobre ciclo, exames e contracepção
+            </span>
+            {onOpenNurseChat && (
+              <button
+                type="button"
+                onClick={onOpenNurseChat}
+                className="px-4 py-2 rounded-xl bg-[#5D1425] hover:bg-[#741C30] text-[#E6D4AF] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Abrir Chat</span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* =====================================================================
+          6. ATALHOS ORGANIZADOS DE SAÚDE FEMININA (Section 8)
+         ===================================================================== */}
+      <section aria-label="Atalhos de saúde feminina">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-serif font-bold text-[#480D1B]">
+            Áreas de Saúde Feminina
+          </h2>
+          <span className="text-xs text-stone-500">
+            Ciclo, sintomas, prevenção, documentos e conteúdos
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <button
+            type="button"
+            onClick={() => onNavigate('cycle_tracker')}
+            className="p-4 rounded-2xl bg-white border border-[#E6D4AF] hover:border-[#8D253D] text-left transition-all flex flex-col justify-between cursor-pointer group shadow-2xs"
+          >
+            <div className="w-10 h-10 rounded-xl bg-[#FAF0F2] text-[#8D253D] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-serif font-bold text-base text-[#480D1B]">
+                Ciclo & Histórico
+              </h3>
+              <p className="text-[11px] text-stone-500 mt-0.5 line-clamp-2">
+                Calendário menstrual, janela fértil e contracepção
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('preventive_screening')}
+            className="p-4 rounded-2xl bg-white border border-[#E6D4AF] hover:border-[#8D253D] text-left transition-all flex flex-col justify-between cursor-pointer group shadow-2xs"
+          >
+            <div className="w-10 h-10 rounded-xl bg-[#FAF6ED] text-[#9B7731] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-serif font-bold text-base text-[#480D1B]">
+                Exames & Prevenção
+              </h3>
+              <p className="text-[11px] text-stone-500 mt-0.5 line-clamp-2">
+                Papanicolaou, mamografia, USG e rastreio periódico
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('documents')}
+            className="p-4 rounded-2xl bg-white border border-[#E6D4AF] hover:border-[#8D253D] text-left transition-all flex flex-col justify-between cursor-pointer group shadow-2xs"
+          >
+            <div className="w-10 h-10 rounded-xl bg-[#FAF0F2] text-[#5D1425] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-serif font-bold text-base text-[#480D1B]">
+                Documentos & Receitas
+              </h3>
+              <p className="text-[11px] text-stone-500 mt-0.5 line-clamp-2">
+                Resultados, prescrições, atestados e laudos
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('woman_education')}
+            className="p-4 rounded-2xl bg-white border border-[#E6D4AF] hover:border-[#8D253D] text-left transition-all flex flex-col justify-between cursor-pointer group shadow-2xs"
+          >
+            <div className="w-10 h-10 rounded-xl bg-[#FAF6ED] text-[#5D1425] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-serif font-bold text-base text-[#480D1B]">
+                Conteúdos & Guias
+              </h3>
+              <p className="text-[11px] text-stone-500 mt-0.5 line-clamp-2">
+                Prevenção, saúde íntima, fertilidade e bem-estar
+              </p>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      {/* Check-in Diário & Sintomas */}
+      <DailyCheckinPanel
+        onOpenNurseChat={onOpenNurseChat}
+        onOpenSOS={onOpenSOS}
+      />
+
+      {/* Aviso Educativo — Não substitui diagnóstico médico (Section 8) */}
+      <EducationalClinicalBanner variant="patient" onOpenSOS={onOpenSOS} />
     </div>
   );
 };

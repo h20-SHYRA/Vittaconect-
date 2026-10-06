@@ -18,9 +18,11 @@ import {
 import { INITIAL_CLINIC_NEWS, INITIAL_WOMAN_CLINIC_NEWS, CLINIC_INFO } from '../data/mockData';
 import { ClinicNewsItem } from '../types';
 import { usePatient } from '../context/PatientContext';
+import { useFeedback } from '../context/FeedbackContext';
 
 export const ClinicNewsView: React.FC = () => {
   const { patient } = usePatient();
+  const { showToast } = useFeedback();
   const isWomanMode = patient?.userMode === 'saude_feminina';
   const defaultList = isWomanMode ? INITIAL_WOMAN_CLINIC_NEWS : INITIAL_CLINIC_NEWS;
 
@@ -57,7 +59,11 @@ export const ClinicNewsView: React.FC = () => {
       navigator.share({ title: item.title, text }).catch(() => {});
     } else {
       navigator.clipboard.writeText(text);
-      alert('Texto do comunicado copiado para compartilhar com seu acompanhante!');
+      showToast({
+        title: 'Comunicado Copiado!',
+        description: 'Texto copiado para compartilhar com seu acompanhante.',
+        tone: 'success',
+      });
     }
   };
 

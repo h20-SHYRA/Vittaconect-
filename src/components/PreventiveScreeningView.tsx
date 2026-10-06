@@ -21,9 +21,13 @@ import {
 import { INITIAL_PREVENTIVE_EXAMS, CLINIC_INFO } from '../data/mockData';
 import { PreventiveExam } from '../types';
 import { usePatient } from '../context/PatientContext';
+import { useFeedback } from '../context/FeedbackContext';
+import { sendRealtimeChatMessage } from '../services/realtimeChat';
+import { EducationalClinicalBanner } from './ui';
 
 export const PreventiveScreeningView: React.FC = () => {
   const { patient } = usePatient();
+  const { showToast } = useFeedback();
 
   const [exams, setExams] = useState<PreventiveExam[]>(() => {
     try {
@@ -75,6 +79,27 @@ export const PreventiveScreeningView: React.FC = () => {
       })
     );
     setIsUpdateModalOpen(false);
+    showToast({
+      title: 'Exame Preventivo Atualizado',
+      description: 'Os dados do laudo e a data de próximo rastreio foram salvos na sua carteira.',
+      tone: 'success',
+    });
+  };
+
+  const handleShareExamWithNurse = async (exam: PreventiveExam) => {
+    await sendRealtimeChatMessage({
+      channelId: 'group',
+      senderId: patient?.id || 'pat-1',
+      senderName: patient?.name || 'Paciente',
+      senderRole: 'paciente',
+      text: `🔬 Compartilhamento de Exame Preventivo: ${exam.name} | Última realização: ${exam.lastDate || 'N/A'} | Próximo vencimento: ${exam.nextDueDate} | Resultado: "${exam.lastResult || 'Aguardando avaliação'}".`,
+      category: 'exame',
+    });
+    showToast({
+      title: 'Exame Enviado para a Enfermagem',
+      description: `O resumo de "${exam.name}" foi compartilhado no chat com a equipe Vittacare.`,
+      tone: 'info',
+    });
   };
 
   const handlePrint = () => {
@@ -220,13 +245,23 @@ export const PreventiveScreeningView: React.FC = () => {
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => handleOpenUpdate(exam)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-50 border border-stone-200 hover:bg-[#FAF6ED] text-[#480D1B] text-xs font-semibold transition-all self-start sm:self-auto cursor-pointer"
-                  >
-                    <span>Atualizar Registro</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => handleShareExamWithNurse(exam)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF0F2] border border-[#EBBEC8] hover:bg-[#F5DFE4] text-[#5D1425] text-xs font-semibold transition-all cursor-pointer"
+                    >
+                      <span>Enviar p/ Enfermagem</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenUpdate(exam)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-50 border border-stone-200 hover:bg-[#FAF6ED] text-[#480D1B] text-xs font-semibold transition-all cursor-pointer"
+                    >
+                      <span>Atualizar Registro</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Exam Dates & Result Details */}
@@ -393,6 +428,8 @@ export const PreventiveScreeningView: React.FC = () => {
           </div>
         </div>
       )}
+
+      <EducationalClinicalBanner variant="patient" />
 
       {/* MODAL: UPDATE EXAM */}
       {isUpdateModalOpen && (

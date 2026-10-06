@@ -27,6 +27,7 @@ import { VittacareLogo } from './VittacareLogo';
 import { NursingCrest } from './NursingCrest';
 import { CircularAccessCounter } from './CircularAccessCounter';
 import { NursingConstellationView } from './NursingConstellationView';
+import { SOAPEvolutionPanel } from './professional/SOAPEvolutionPanel';
 import { ProfessionalTab, ProfessionalAppointment } from '../types';
 import { 
   useRealtimeChat, 
@@ -40,7 +41,8 @@ export const VittaprofessioDashboard: React.FC = () => {
   const { 
     professionalProfile, 
     logout, 
-    updateProfessionalStatus, 
+    updateProfessionalStatus,
+    isDemoSession,
   } = useAuth();
   const { patients } = useChatDirectory();
 
@@ -516,6 +518,12 @@ export const VittaprofessioDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen vitta-pearl-blue-bg text-[#0A2647] flex flex-col font-sans">
+      {isDemoSession && (
+        <div className="bg-amber-100 border-b border-amber-300 px-4 py-1 text-center text-[11px] font-bold text-amber-950 flex items-center justify-center gap-2">
+          <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+          <span>Modo Demonstração — Dados Fictícios • Simulação Clínica Vittaprofessio</span>
+        </div>
+      )}
       {/* EXTREMITY TOP: Premium Pearl Light Blue Header with Metallic Sapphire Blue Borders & Accents */}
       <header className="vitta-pearl-blue-header text-[#0A2647] border-b-2 border-[#144272] sticky top-0 z-40 w-full">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
@@ -586,7 +594,7 @@ export const VittaprofessioDashboard: React.FC = () => {
               title="Sair do painel profissional"
             >
               <LogOut className="w-3.5 h-3.5 text-[#144272]" />
-              <span className="hidden sm:inline">Sair</span>
+              <span>Sair</span>
             </button>
           </div>
         </div>
@@ -696,9 +704,12 @@ export const VittaprofessioDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* TAB 0: CONSTELAÇÃO CLÍNICA DE ENFERMAGEM */}
+        {/* TAB 0: CONSTELAÇÃO CLÍNICA DE ENFERMAGEM + EVOLUÇÃO SOAP */}
         {activeTab === 'constellation' && (
-          <NursingConstellationView />
+          <div className="space-y-6">
+            <NursingConstellationView />
+            <SOAPEvolutionPanel />
+          </div>
         )}
 
         {/* TAB 1: ACESSOS & INDICADORES (CONTAINS THE CIRCULAR ACCESS COUNTER) */}
@@ -1944,6 +1955,9 @@ export const VittaprofessioDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* EVOLUÇÃO CLÍNICA ESTRUTURADA EM SOAP (Vittaconect 2.0) */}
+            <SOAPEvolutionPanel />
           </div>
         )}
 

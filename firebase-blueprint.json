@@ -2,98 +2,139 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "Cadastro e perfil de usuário do ecossistema Vittaconect e Vittaprofessio",
+      "description": "Cadastro e perfil de usuário do ecossistema Vittaconect e Vittaprofessio com controle RBAC",
       "type": "object",
       "properties": {
-        "uid": { "type": "string", "description": "ID exclusivo de autenticação do Firebase" },
-        "email": { "type": "string", "description": "E-mail autenticado com Google Sign-In" },
-        "displayName": { "type": "string", "description": "Nome completo ou de exibição" },
-        "photoURL": { "type": "string", "description": "URL da foto de perfil do Google" },
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$", "description": "ID exclusivo de autenticação do Firebase" },
+        "email": { "type": "string", "maxLength": 254, "description": "E-mail autenticado" },
+        "displayName": { "type": "string", "maxLength": 140, "description": "Nome completo ou de exibição" },
+        "photoURL": { "type": "string", "maxLength": 1024, "description": "URL da foto de perfil" },
         "role": {
           "type": "string",
-          "enum": ["paciente", "profissional"],
-          "description": "Perfil de acesso: paciente ou profissional"
+          "enum": ["paciente", "profissional", "administrador"],
+          "description": "Perfil RBAC: paciente, profissional ou administrador"
         },
         "patientMode": {
           "type": "string",
           "enum": ["gestante", "saude_feminina"],
           "description": "Modo do paciente caso role seja paciente"
         },
-        "specialty": { "type": "string", "description": "Especialidade médica ou de enfermagem" },
-        "councilNumber": { "type": "string", "description": "Registro profissional CRM/COREN" },
-        "phone": { "type": "string", "description": "Telefone de contato ou WhatsApp" },
-        "createdAt": { "type": "string", "description": "Data de criação em ISO" },
-        "lastLoginAt": { "type": "string", "description": "Último login registrado" }
+        "specialty": { "type": "string", "maxLength": 160, "description": "Especialidade médica ou de enfermagem" },
+        "councilNumber": { "type": "string", "maxLength": 64, "description": "Registro profissional COREN/CRM" },
+        "phone": { "type": "string", "maxLength": 40, "description": "Telefone de contato" },
+        "onDuty": { "type": "boolean", "description": "Status de plantão ativo do profissional" },
+        "createdAt": { "type": "string", "maxLength": 64, "description": "Data de criação em ISO" },
+        "lastLoginAt": { "type": "string", "maxLength": 64, "description": "Último login registrado" }
       },
       "required": ["uid", "email", "role"]
     },
     "AccessMetric": {
       "title": "AccessMetric",
-      "description": "Métricas diárias e mensais de acessos ao aplicativo",
+      "description": "Métricas agregadas diárias e mensais de acessos autenticados",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "description": "Identificador da métrica (data ou aggregate)" },
-        "date": { "type": "string", "description": "Data no formato YYYY-MM-DD" },
         "dailyAccessCount": { "type": "number", "description": "Total de acessos no dia" },
         "monthlyAccessCount": { "type": "number", "description": "Total de acessos acumulados no mês" },
         "dailyGoal": { "type": "number", "description": "Meta diária estimada" },
         "monthlyGoal": { "type": "number", "description": "Meta mensal estimada" },
-        "updatedAt": { "type": "string", "description": "Data da última atualização" }
+        "lastDate": { "type": "string", "maxLength": 20, "description": "Data YYYY-MM-DD" },
+        "lastMonth": { "type": "string", "maxLength": 10, "description": "Mês YYYY-MM" },
+        "updatedAt": { "type": "string", "maxLength": 64, "description": "Data da última atualização" }
       },
-      "required": ["id", "dailyAccessCount", "monthlyAccessCount"]
+      "required": ["dailyAccessCount", "monthlyAccessCount"]
+    },
+    "AccessLog": {
+      "title": "AccessLog",
+      "description": "Log de auditoria de acessos e operações sensíveis",
+      "type": "object",
+      "properties": {
+        "source": { "type": "string", "maxLength": 120, "description": "Origem ou ação auditada" },
+        "accessedAt": { "type": "string", "maxLength": 64, "description": "Timestamp ISO" },
+        "userRole": { "type": "string", "maxLength": 32, "description": "Papel do usuário" },
+        "userEmail": { "type": "string", "maxLength": 254, "description": "Identificador mascarado ou institucional" }
+      },
+      "required": ["source", "accessedAt"]
     },
     "ProfessionalAgenda": {
       "title": "ProfessionalAgenda",
-      "description": "Compromisso ou consulta na agenda do profissional",
+      "description": "Compromisso, consulta, exame ou teleconsulta com controle paciente/profissional",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "description": "ID do agendamento" },
-        "professionalId": { "type": "string", "description": "UID do profissional responsável" },
-        "patientName": { "type": "string", "description": "Nome da paciente" },
-        "patientEmail": { "type": "string", "description": "E-mail da paciente" },
-        "appointmentDate": { "type": "string", "description": "Data da consulta" },
-        "appointmentTime": { "type": "string", "description": "Horário da consulta" },
-        "type": { "type": "string", "description": "Tipo de consulta: teleconsulta ou presencial" },
+        "id": { "type": "string", "maxLength": 128, "description": "ID do agendamento" },
+        "professionalId": { "type": "string", "maxLength": 128, "description": "UID do profissional responsável" },
+        "patientId": { "type": "string", "maxLength": 128, "description": "UID da paciente" },
+        "patientName": { "type": "string", "maxLength": 140, "description": "Nome da paciente" },
+        "patientEmail": { "type": "string", "maxLength": 254, "description": "E-mail da paciente" },
+        "appointmentDate": { "type": "string", "maxLength": 32, "description": "Data da consulta" },
+        "appointmentTime": { "type": "string", "maxLength": 16, "description": "Horário da consulta" },
+        "type": { "type": "string", "enum": ["consulta", "teleconsulta", "exame", "retorno", "lembrete"], "description": "Modalidade do compromisso" },
         "status": {
           "type": "string",
-          "enum": ["agendado", "em_andamento", "concluido", "cancelado"],
+          "enum": ["agendado", "confirmado", "em_andamento", "concluido", "cancelado", "reagendamento_solicitado"],
           "description": "Status do atendimento"
         },
-        "notes": { "type": "string", "description": "Observações do prontuário" }
+        "notes": { "type": "string", "maxLength": 2000, "description": "Observações clínicas ou administrativas" }
       },
-      "required": ["id", "professionalId", "patientName", "appointmentDate", "appointmentTime", "status"]
+      "required": ["professionalId", "patientName", "appointmentDate", "appointmentTime", "status"]
     },
     "ChatMessage": {
       "title": "ChatMessage",
-      "description": "Mensagem no chat em tempo real entre profissional e equipe/paciente",
+      "description": "Mensagem criptografada em trânsito entre paciente e profissional participante",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "description": "ID da mensagem" },
-        "senderId": { "type": "string", "description": "UID do remetente" },
-        "senderName": { "type": "string", "description": "Nome de quem enviou" },
-        "senderRole": { "type": "string", "description": "paciente ou profissional" },
-        "text": { "type": "string", "description": "Conteúdo da mensagem" },
-        "timestamp": { "type": "string", "description": "Horário do envio" }
+        "senderId": { "type": "string", "maxLength": 128, "description": "UID ou identificador do remetente" },
+        "senderName": { "type": "string", "maxLength": 140, "description": "Nome de quem enviou" },
+        "senderRole": { "type": "string", "enum": ["paciente", "profissional", "administrador"], "description": "Papel do remetente" },
+        "recipientId": { "type": "string", "maxLength": 128, "description": "Identificador do destinatário" },
+        "recipientName": { "type": "string", "maxLength": 140, "description": "Nome do destinatário" },
+        "text": { "type": "string", "maxLength": 4000, "description": "Conteúdo da mensagem" },
+        "timeString": { "type": "string", "maxLength": 32, "description": "Horário formatado" },
+        "category": { "type": "string", "enum": ["clinico", "administrativo"], "description": "Classificação da conversa" },
+        "isImportant": { "type": "boolean", "description": "Marcador de orientação importante" },
+        "readAt": { "type": "string", "maxLength": 64, "description": "Confirmação de leitura" }
       },
-      "required": ["id", "senderId", "senderName", "text", "timestamp"]
+      "required": ["senderId", "senderName", "senderRole", "text"]
+    },
+    "ClinicalRecord": {
+      "title": "ClinicalRecord",
+      "description": "Prontuário estruturado, evolução SOAP e aplicação de escalas com controle de imutabilidade após fechamento",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string", "maxLength": 128, "description": "UID da paciente" },
+        "professionalId": { "type": "string", "maxLength": 128, "description": "UID do profissional autor" },
+        "professionalName": { "type": "string", "maxLength": 140, "description": "Nome e COREN do autor" },
+        "recordType": { "type": "string", "enum": ["prontuario", "soap", "escala", "prescricao", "documento"], "description": "Tipo do registro clínico" },
+        "status": { "type": "string", "enum": ["rascunho", "finalizado"], "description": "Estado de fechamento (finalizado é imutável)" },
+        "summary": { "type": "string", "maxLength": 4000, "description": "Conteúdo clínico registrado" },
+        "createdAt": { "type": "string", "maxLength": 64, "description": "Data/hora de criação" }
+      },
+      "required": ["patientId", "professionalId", "professionalName", "recordType", "status", "summary", "createdAt"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "UserProfile",
-      "description": "Coleção de perfis de usuários com restrições por role (paciente vs profissional)"
+      "description": "Perfis de usuários com isolamento estrito por proprietário, profissional autorizado ou administrador"
     },
     "/access_metrics/{metricId}": {
       "schema": "AccessMetric",
-      "description": "Coleção de métricas de contagem de acessos diários e mensais com indicador circular"
+      "description": "Métricas agregadas de acesso da clínica"
+    },
+    "/access_logs/{logId}": {
+      "schema": "AccessLog",
+      "description": "Trilha de auditoria imutável de acessos e eventos sensíveis"
     },
     "/professional_agenda/{agendaId}": {
       "schema": "ProfessionalAgenda",
-      "description": "Agenda clínica e teleconsultas exclusivas de profissionais autorizados"
+      "description": "Agenda de consultas, teleconsultas e exames com controle paciente/profissional"
     },
-    "/team_chats/{chatId}/messages/{messageId}": {
+    "/consultation_chats/{chatId}/messages/{messageId}": {
       "schema": "ChatMessage",
-      "description": "Mensagens de suporte e teleorientação em tempo real"
+      "description": "Mensagens 1:1 com validação de participante e tamanho máximo"
+    },
+    "/clinical_records/{recordId}": {
+      "schema": "ClinicalRecord",
+      "description": "Prontuários, evoluções SOAP e escalas clínicas com bloqueio de edição após finalização"
     }
   }
 }

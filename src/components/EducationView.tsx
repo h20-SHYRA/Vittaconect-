@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { EDUCATIONAL_ARTICLES } from '../data/mockData';
 import { EducationalArticle } from '../types';
+import { EducationalClinicalBanner } from './ui';
 
 export const EducationView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -29,12 +30,12 @@ export const EducationView: React.FC = () => {
   const [breathingSeconds, setBreathingSeconds] = useState(4);
 
   const categories = [
-    { id: 'all', label: 'Todos os Cuidados' },
-    { id: 'saude_gestante', label: 'Saúde da Gestante' },
-    { id: 'preventivos_mulher', label: 'Exames Preventivos da Mulher' },
-    { id: 'saude_mental', label: 'Saúde Mental Materna' },
-    { id: 'amamentacao', label: 'Amamentação' },
-    { id: 'nutricao', label: 'Nutrição' },
+    { id: 'all', label: 'Todos os Conteúdos' },
+    { id: 'saude_gestante', label: 'Gestação & Enfermagem' },
+    { id: 'preventivos_mulher', label: 'Prevenção & Saúde Feminina' },
+    { id: 'saude_mental', label: 'Bem-Estar & Saúde Mental' },
+    { id: 'amamentacao', label: 'Amamentação & Cuidados' },
+    { id: 'nutricao', label: 'Nutrição Materna' },
   ];
 
   const filteredArticles = selectedCategory === 'all'
@@ -226,6 +227,9 @@ export const EducationView: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Aviso Educativo — Não substitui avaliação clínica individual (Section 14) */}
+      <EducationalClinicalBanner variant="patient" />
 
       {/* Full Article Reader Modal */}
       {activeArticle && (

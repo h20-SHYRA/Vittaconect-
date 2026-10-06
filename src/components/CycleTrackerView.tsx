@@ -17,11 +17,14 @@ import {
   Compass
 } from 'lucide-react';
 import { usePatient } from '../context/PatientContext';
+import { useFeedback } from '../context/FeedbackContext';
 import { INITIAL_CYCLE_LOGS } from '../data/mockData';
 import { CycleDayLog } from '../types';
+import { EducationalClinicalBanner } from './ui';
 
 export const CycleTrackerView: React.FC = () => {
   const { patient, registerOrUpdatePatient } = usePatient();
+  const { showToast } = useFeedback();
 
   const [logs, setLogs] = useState<CycleDayLog[]>(() => {
     try {
@@ -105,6 +108,12 @@ export const CycleTrackerView: React.FC = () => {
     if (editFlow === 'heavy' || editFlow === 'medium') {
       registerOrUpdatePatient({ lastPeriodDate: selectedDate });
     }
+
+    showToast({
+      title: 'Registro do Ciclo Salvo',
+      description: `Os dados de ${selectedDate} foram atualizados no seu calendário ginecológico.`,
+      tone: 'success',
+    });
   };
 
   const toggleSymptom = (sym: string) => {
@@ -458,6 +467,44 @@ export const CycleTrackerView: React.FC = () => {
           </form>
         </div>
       </div>
+
+      {/* Contraceptive Method & Educational Fertility Notice (Section 13) */}
+      <div className="p-5 rounded-3xl bg-white border border-[#E6D4AF] shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+        <div className="space-y-1">
+          <strong className="text-sm font-serif text-[#480D1B] block">
+            Planejamento Reprodutivo & Método Contraceptivo Atual
+          </strong>
+          <p className="text-stone-600 max-w-2xl">
+            Importante: A estimativa de janela fértil por calendário tem caráter educativo e de autoconhecimento, não substituindo métodos contraceptivos de barreira ou hormonais prescritos em consulta ginecológica.
+          </p>
+        </div>
+        <div className="shrink-0">
+          <label className="text-[11px] font-bold text-[#480D1B] block mb-1">
+            Método em Uso:
+          </label>
+          <select
+            value={patient?.contraceptiveMethod || 'Preservativo'}
+            onChange={(e) => {
+              registerOrUpdatePatient({ contraceptiveMethod: e.target.value });
+              showToast({
+                title: 'Método Atualizado',
+                description: `Método registrado: ${e.target.value}`,
+                tone: 'info',
+              });
+            }}
+            className="px-3 py-2 rounded-xl border border-[#E6D4AF] bg-[#FAF6ED] text-[#480D1B] font-semibold text-xs"
+          >
+            <option value="Preservativo">Preservativo (Barreira)</option>
+            <option value="DIU Hormonal (Mirena/Kyleena)">DIU Hormonal (Mirena/Kyleena)</option>
+            <option value="DIU de Cobre / Prata">DIU de Cobre / Prata</option>
+            <option value="Anticoncepcional Oral">Anticoncepcional Oral</option>
+            <option value="Implante Subdérmico (Implanon)">Implante Subdérmico</option>
+            <option value="Tentante / Planejando Gestação">Tentante / Planejando Gestação</option>
+          </select>
+        </div>
+      </div>
+
+      <EducationalClinicalBanner variant="patient" />
     </div>
   );
 };

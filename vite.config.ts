@@ -11,11 +11,30 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        injectRegister: null, // We handle manifest in index.html to prevent HMR ws.send crashes
-        includeAssets: ['icon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'manifest.webmanifest'],
-        manifest: false, // Served statically from public/manifest.webmanifest
+        injectRegister: null, // Manifest & registration handled safely in index.html
+        includeAssets: [
+          'icon.svg',
+          'apple-touch-icon.png',
+          'pwa-192x192.png',
+          'pwa-512x512.png',
+          'manifest.webmanifest',
+        ],
+        manifest: false,
+        workbox: {
+          // Never cache sensitive clinical Firestore or IdentityToolkit endpoints in public cache (Section 30)
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
+              handler: 'NetworkOnly',
+            },
+            {
+              urlPattern: /^https:\/\/identitytoolkit\.googleapis\.com\/.*/i,
+              handler: 'NetworkOnly',
+            },
+          ],
+        },
         devOptions: {
-          enabled: false, // Prevents server.ws.send crash when DISABLE_HMR is true in AI Studio
+          enabled: false,
         },
       }),
     ],
@@ -33,4 +52,3 @@ export default defineConfig(() => {
     },
   };
 });
-

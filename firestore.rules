@@ -1,59 +1,292 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    function isAuthenticated() {
+
+    // =========================================================================
+    // 0. GLOBAL SAFETY NET (DEFAULT DENY)
+    // =========================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // 1. HARDENED PRIMITIVE HELPERS & RBAC
+    // =========================================================================
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
-    
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == 'ronaldmendesmendes23z@gmail.com' && request.auth.token.email_verified == true)
+      );
     }
-    
+
     function isProfessional() {
-      return isAuthenticated() && getUserData().role == 'profissional';
+      return isSignedIn() && (
+        isAdmin() ||
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'profissional'
+        )
+      );
     }
 
-    // Coleção de Usuários
+    // =========================================================================
+    // 2. VALIDATION BLUEPRINTS
+    // =========================================================================
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+        data.email is string && data.email.size() <= 254 &&
+        data.role in ['paciente', 'profissional', 'administrador'] &&
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 140)) &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1024)) &&
+        (!('specialty' in data) || (data.specialty is string && data.specialty.size() <= 160)) &&
+        (!('councilNumber' in data) || (data.councilNumber is string && data.councilNumber.size() <= 64)) &&
+        (!('phone' in data) || (data.phone is string && data.phone.size() <= 40)) &&
+        (!('patientMode' in data) || data.patientMode in ['gestante', 'saude_feminina']) &&
+        (!('onDuty' in data) || data.onDuty is bool);
+    }
+
+    function isValidAccessMetric(data) {
+      return data.keys().hasAll(['dailyAccessCount', 'monthlyAccessCount']) &&
+        data.dailyAccessCount is number && data.dailyAccessCount >= 0 &&
+        data.monthlyAccessCount is number && data.monthlyAccessCount >= 0 &&
+        (!('dailyGoal' in data) || (data.dailyGoal is number && data.dailyGoal > 0)) &&
+        (!('monthlyGoal' in data) || (data.monthlyGoal is number && data.monthlyGoal > 0)) &&
+        (!('lastDate' in data) || (data.lastDate is string && data.lastDate.size() <= 20)) &&
+        (!('lastMonth' in data) || (data.lastMonth is string && data.lastMonth.size() <= 10)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    function isValidAccessLog(data) {
+      return data.keys().hasAll(['source', 'accessedAt']) &&
+        data.source is string && data.source.size() <= 120 &&
+        data.accessedAt is string && data.accessedAt.size() <= 64 &&
+        (!('userRole' in data) || (data.userRole is string && data.userRole.size() <= 32)) &&
+        (!('userEmail' in data) || (data.userEmail is string && data.userEmail.size() <= 254));
+    }
+
+    function isValidAgendaItem(data) {
+      return data.keys().hasAll(['professionalId', 'patientName', 'appointmentDate', 'appointmentTime', 'status']) &&
+        data.professionalId is string && data.professionalId.size() <= 128 &&
+        data.patientName is string && data.patientName.size() <= 140 &&
+        data.appointmentDate is string && data.appointmentDate.size() <= 32 &&
+        data.appointmentTime is string && data.appointmentTime.size() <= 16 &&
+        data.status in ['agendado', 'confirmado', 'em_andamento', 'concluido', 'cancelado', 'reagendamento_solicitado'] &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000));
+    }
+
+    function isValidChatMessage(data) {
+      return data.keys().hasAll(['senderId', 'senderName', 'senderRole', 'text']) &&
+        data.senderId is string && data.senderId.size() <= 128 &&
+        data.senderName is string && data.senderName.size() <= 140 &&
+        data.senderRole in ['paciente', 'profissional', 'administrador'] &&
+        data.text is string && data.text.size() >= 1 && data.text.size() <= 4000 &&
+        (!('recipientId' in data) || (data.recipientId is string && data.recipientId.size() <= 128)) &&
+        (!('recipientName' in data) || (data.recipientName is string && data.recipientName.size() <= 140)) &&
+        (!('timeString' in data) || (data.timeString is string && data.timeString.size() <= 32)) &&
+        (!('category' in data) || data.category in ['clinico', 'administrativo']) &&
+        (!('isImportant' in data) || data.isImportant is bool);
+    }
+
+    function isValidClinicalRecord(data) {
+      return data.keys().hasAll(['patientId', 'professionalId', 'professionalName', 'recordType', 'status', 'summary', 'createdAt']) &&
+        data.patientId is string && data.patientId.size() <= 128 &&
+        data.professionalId is string && data.professionalId.size() <= 128 &&
+        data.professionalName is string && data.professionalName.size() <= 140 &&
+        data.recordType in ['prontuario', 'soap', 'escala', 'prescricao', 'documento'] &&
+        data.status in ['rascunho', 'finalizado'] &&
+        data.summary is string && data.summary.size() >= 1 && data.summary.size() <= 4000 &&
+        data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    // =========================================================================
+    // 3. COLLECTION RULES
+    // =========================================================================
+
+    // Test connection endpoint used by getDocFromServer on boot
+    match /test/connection {
+      allow get: if isSignedIn();
+      allow list, write: if false;
+    }
+
+    // Bootstrapped Admins collection
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list, write: if isAdmin();
+    }
+
+    // Coleção de Usuários (Isolamento PII: somente o próprio usuário, profissionais autorizados ou admin)
     match /users/{userId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if isOwner(userId);
-    }
-    
-    // Métricas verídicas de acessos diários e mensais
-    match /access_metrics/{metricId} {
-      allow read, write: if true;
+      allow get: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isProfessional() || isAdmin());
+      allow list: if isSignedIn() && (
+        existing().uid == request.auth.uid ||
+        existing().role == 'profissional' ||
+        isProfessional() ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() &&
+        isValidId(userId) &&
+        isOwner(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        (incoming().role in ['paciente', 'profissional'] || isAdmin());
+      allow update: if isSignedIn() &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == existing().uid &&
+        (
+          isAdmin() ||
+          (isOwner(userId) && incoming().role == existing().role)
+        );
+      allow delete: if isSignedIn() && isValidId(userId) && (isOwner(userId) || isAdmin());
     }
 
-    // Registros auditáveis de acessos verídicos
+    // Métricas de acessos verificados
+    match /access_metrics/{metricId} {
+      allow get: if isSignedIn() && isValidId(metricId);
+      allow list: if isProfessional() || isAdmin();
+      allow create, update: if isSignedIn() && isValidId(metricId) && isValidAccessMetric(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Registros de auditoria de acessos e operações sensíveis (Imutáveis após criação)
     match /access_logs/{logId} {
-      allow read, write: if true;
+      allow get, list: if isProfessional() || isAdmin();
+      allow create: if isSignedIn() && isValidId(logId) && isValidAccessLog(incoming());
+      allow update, delete: if false;
     }
-    
-    // Agenda e teleconsultas de enfermagem
+
+    // Agenda de consultas, teleconsultas e exames (Controle Paciente/Profissional)
     match /professional_agenda/{agendaId} {
-      allow read, write: if true;
+      allow get: if isSignedIn() && isValidId(agendaId) && (
+        existing().patientId == request.auth.uid ||
+        existing().professionalId == request.auth.uid ||
+        isProfessional() ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        existing().patientId == request.auth.uid ||
+        existing().professionalId == request.auth.uid ||
+        isProfessional() ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && isValidId(agendaId) && isValidAgendaItem(incoming()) && (
+        incoming().patientId == request.auth.uid ||
+        isProfessional() ||
+        isAdmin()
+      );
+      allow update: if isSignedIn() && isValidId(agendaId) && isValidAgendaItem(incoming()) && (
+        isProfessional() ||
+        isAdmin() ||
+        (
+          existing().patientId == request.auth.uid &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes'])
+        )
+      );
+      allow delete: if isSignedIn() && isValidId(agendaId) && (isProfessional() || isAdmin());
     }
-    
-    // Chat em tempo real interativo entre Enfermeiro(a) e Paciente
+
+    // Prontuários digitais, Evoluções SOAP e Escalas Clínicas (Terminal State Locking quando status == 'finalizado')
+    match /clinical_records/{recordId} {
+      allow get: if isSignedIn() && isValidId(recordId) && (
+        existing().patientId == request.auth.uid ||
+        isProfessional() ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        existing().patientId == request.auth.uid ||
+        isProfessional() ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && isValidId(recordId) && isValidClinicalRecord(incoming()) && (
+        isProfessional() || isAdmin()
+      );
+      allow update: if isSignedIn() && isValidId(recordId) && isValidClinicalRecord(incoming()) && (
+        isAdmin() ||
+        (
+          isProfessional() &&
+          existing().status != 'finalizado' &&
+          incoming().patientId == existing().patientId &&
+          incoming().createdAt == existing().createdAt
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Chat em tempo real interativo entre Enfermeiro(a) e Paciente com controle de participantes
     match /consultation_chats/{chatId} {
-      allow read, write: if true;
-      
+      allow get: if isSignedIn() && isValidId(chatId);
+      allow list: if isSignedIn() && (
+        existing().patientId == request.auth.uid ||
+        existing().professionalId == request.auth.uid ||
+        isProfessional() ||
+        isAdmin()
+      );
+      allow create, update: if isSignedIn() && isValidId(chatId);
+      allow delete: if isAdmin();
+
       match /messages/{messageId} {
-        allow read, write: if true;
+        allow get: if isSignedIn() && isValidId(chatId) && isValidId(messageId) && (
+          existing().senderId == request.auth.uid ||
+          existing().recipientId == request.auth.uid ||
+          isProfessional() ||
+          isAdmin()
+        );
+        allow list: if isSignedIn() && (
+          existing().senderId == request.auth.uid ||
+          existing().recipientId == request.auth.uid ||
+          isProfessional() ||
+          isAdmin()
+        );
+        allow create: if isSignedIn() &&
+          isValidId(chatId) &&
+          isValidId(messageId) &&
+          isValidChatMessage(incoming());
+        allow update: if isSignedIn() &&
+          isValidId(chatId) &&
+          isValidId(messageId) &&
+          isValidChatMessage(incoming()) &&
+          incoming().senderId == existing().senderId &&
+          incoming().text == existing().text &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['readAt', 'isImportant']);
+        allow delete: if isAdmin();
       }
     }
 
     match /team_chats/{chatId} {
-      allow read, write: if true;
-      
+      allow get: if isSignedIn() && isValidId(chatId) && (isProfessional() || isAdmin());
+      allow list: if isProfessional() || isAdmin();
+      allow create, update: if isSignedIn() && isValidId(chatId) && (isProfessional() || isAdmin());
+      allow delete: if isAdmin();
+
       match /messages/{messageId} {
-        allow read, write: if true;
+        allow get, list: if isProfessional() || isAdmin();
+        allow create: if isSignedIn() &&
+          isValidId(chatId) &&
+          isValidId(messageId) &&
+          (isProfessional() || isAdmin()) &&
+          isValidChatMessage(incoming());
+        allow update, delete: if isAdmin();
       }
     }
   }

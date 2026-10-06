@@ -18,11 +18,14 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { usePatient } from '../context/PatientContext';
+import { useFeedback } from '../context/FeedbackContext';
 import { INITIAL_FORUM_POSTS } from '../data/mockData';
 import { ForumPost, ForumComment } from '../types';
+import { EducationalClinicalBanner } from './ui';
 
 export const CommunityForumView: React.FC = () => {
   const { patient } = usePatient();
+  const { showToast } = useFeedback();
 
   const [posts, setPosts] = useState<ForumPost[]>(() => {
     try {
@@ -375,9 +378,25 @@ export const CommunityForumView: React.FC = () => {
                       </button>
                     </div>
 
-                    <span className="text-[11px] text-stone-400">
-                      Moderação ativa Vittacare
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          showToast({
+                            title: 'Publicação Sinalizada para Moderação',
+                            description:
+                              'A equipe de enfermagem Vittacare revisará este conteúdo conforme as diretrizes de segurança clínica.',
+                            tone: 'info',
+                          })
+                        }
+                        className="text-[11px] text-stone-400 hover:text-rose-700 transition-colors cursor-pointer"
+                      >
+                        Reportar à Moderação
+                      </button>
+                      <span className="text-[11px] text-stone-400 hidden sm:inline">
+                        • Moderação ativa Vittacare
+                      </span>
+                    </div>
                   </div>
 
                   {/* Comments Section */}
@@ -462,6 +481,9 @@ export const CommunityForumView: React.FC = () => {
           })
         )}
       </div>
+
+      {/* Regras de Comunidade & Aviso Contra Automedicação (Seção 20) */}
+      <EducationalClinicalBanner variant="patient" />
 
       {/* CREATE NEW POST MODAL */}
       {isNewPostOpen && (

@@ -29,6 +29,7 @@ import {
   CLINIC_INFO 
 } from '../data/mockData';
 import { VaccineRecord, WeightRecord, BloodPressureRecord, PrenatalConsultationRecord } from '../types';
+import { PrenatalBirthPlanPanel } from './patient/PrenatalBirthPlanPanel';
 
 export const PrenatalCardView: React.FC = () => {
   const { patient } = usePatient();
@@ -473,6 +474,9 @@ export const PrenatalCardView: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Vittaconect 2.0: Checklist por Trimestre & Plano de Parto Humanizado */}
+          <PrenatalBirthPlanPanel />
         </div>
       )}
 
@@ -1029,6 +1033,9 @@ export const PrenatalCardView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* PLANO DE PARTO HUMANIZADO & CHECKLIST POR TRIMESTRE (Vittaconect 2.0) */}
+      <PrenatalBirthPlanPanel />
 
       {/* MODAL: ADD WEIGHT */}
       {isAddWeightOpen && (

@@ -9,6 +9,7 @@ interface PatientContextType {
   userMode: UserMode;
   registerOrUpdatePatient: (data: Partial<PatientProfile>) => void;
   switchMode: (mode: UserMode) => void;
+  switchUserMode: (mode: UserMode) => void;
   logout: () => void;
   loadDemoPatient: () => void;
   loadDemoWoman: () => void;
@@ -201,6 +202,7 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
         userMode: currentMode,
         registerOrUpdatePatient,
         switchMode,
+        switchUserMode: switchMode,
         logout,
         loadDemoPatient,
         loadDemoWoman,
