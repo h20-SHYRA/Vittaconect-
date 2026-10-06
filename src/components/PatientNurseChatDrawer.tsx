@@ -125,12 +125,12 @@ export const PatientNurseChatDrawer: React.FC<PatientNurseChatDrawerProps> = ({
     await sendRealtimeChatMessage({
       channelId: activeChannel,
       senderRole: 'paciente',
-      senderId: currentUser?.uid || patient.id || 'paciente-ativa',
-      senderName: patient.name || 'Mariana Silva Santos',
+      senderId: currentUser?.uid || patient?.id || 'paciente-ativa',
+      senderName: patient?.name || 'Mariana Silva Santos',
       recipientId: targetRecipientId,
       recipientName: targetRecipientName,
-      patientName: patient.name || 'Mariana Silva Santos',
-      patientId: patient.id,
+      patientName: patient?.name || 'Mariana Silva Santos',
+      patientId: patient?.id,
       text: trimmed,
       category: customCat || selectedCategory,
       triagePriority:
@@ -143,9 +143,9 @@ export const PatientNurseChatDrawer: React.FC<PatientNurseChatDrawerProps> = ({
 
   const handleShareClinicalSummary = async () => {
     const summaryText =
-      patient.userMode === 'gestante'
-        ? `📋 [Resumo Pré-Natal Compartilhado] Gestante: ${patient.name} • ${patient.currentWeek}ª Semana (DPP: ${patient.dueDate}) • Bebê: ${patient.babyNickname} • Tipo Sanguíneo: ${patient.bloodType} • Alergias: ${patient.allergies}. Solicito revisão da equipe.`
-        : `📋 [Resumo Saúde da Mulher Compartilhado] Paciente: ${patient.name} • Ciclo: ${patient.cycleDurationDays || 28} dias (DUM: ${patient.lastPeriodDate || 'Recente'}) • Método: ${patient.contraceptiveMethod || 'Não informado'} • Alergias: ${patient.allergies}.`;
+      patient?.userMode === 'gestante'
+        ? `📋 [Resumo Pré-Natal Compartilhado] Gestante: ${patient?.name || 'Paciente'} • ${patient?.currentWeek || 18}ª Semana (DPP: ${patient?.dueDate || 'A definir'}) • Bebê: ${patient?.babyNickname || 'Bebê'} • Tipo Sanguíneo: ${patient?.bloodType || 'O+'} • Alergias: ${patient?.allergies || 'Nenhuma'}. Solicito revisão da equipe.`
+        : `📋 [Resumo Saúde da Mulher Compartilhado] Paciente: ${patient?.name || 'Paciente'} • Ciclo: ${patient?.cycleDurationDays || 28} dias (DUM: ${patient?.lastPeriodDate || 'Recente'}) • Método: ${patient?.contraceptiveMethod || 'Não informado'} • Alergias: ${patient?.allergies || 'Nenhuma'}.`;
 
     await handleSendMessage(undefined, summaryText, 'exame');
   };

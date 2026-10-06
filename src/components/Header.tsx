@@ -243,14 +243,14 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <div className="text-right">
               <p className="text-xs font-semibold text-stone-800 leading-none group-hover:text-[#8D253D] transition-colors">
-                {patient.preferredName}
+                {patient?.preferredName || patient?.name?.split(' ')[0] || 'Paciente'}
               </p>
               <p className="text-[11px] text-[#8D253D] font-medium mt-0.5">
-                {isPregnant ? `${patient.currentWeek || 18}ª Semana` : 'Saúde Feminina'}
+                {isPregnant ? `${patient?.currentWeek || 18}ª Semana` : 'Saúde Feminina'}
               </p>
             </div>
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F5DADF] to-[#F3EBD8] border border-[#E6D4AF] flex items-center justify-center text-[#5D1425] font-serif font-bold text-sm shadow-inner">
-              {patient.preferredName?.[0] || 'M'}
+              {patient?.preferredName?.[0] || patient?.name?.[0] || 'M'}
             </div>
           </div>
 

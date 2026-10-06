@@ -121,7 +121,7 @@ function AppContent() {
   }
 
   // REDIRECT 2: If not logged in or profile not yet chosen, show the registration and login screen
-  if (!(userRole === 'paciente' || (isLoggedIn && patient))) {
+  if (!patient || !(userRole === 'paciente' || isLoggedIn)) {
     return <PatientLoginView />;
   }
 

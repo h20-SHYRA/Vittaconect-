@@ -49,7 +49,7 @@ export const TeleconsultationModal: React.FC<TeleconsultationModalProps> = ({
   const activeDoctor =
     doctorName ||
     professionalName ||
-    patient.doctorName ||
+    patient?.doctorName ||
     'Enf. Marcelo & Enfª. Stephanie (Enfermagem Vittacare)';
   const activeSpecialty =
     specialty || role || 'Enfermagem Obstétrica & Teleorientação';
@@ -73,8 +73,8 @@ export const TeleconsultationModal: React.FC<TeleconsultationModalProps> = ({
   });
 
   const [mainComplaint, setMainComplaint] = useState(
-    patient.userMode === 'gestante'
-      ? `Revisão da ${patient.currentWeek}ª semana gestacional, avaliação de movimentos fetais e exames laboratoriais.`
+    patient?.userMode === 'gestante'
+      ? `Revisão da ${patient?.currentWeek || 18}ª semana gestacional, avaliação de movimentos fetais e exames laboratoriais.`
       : 'Acompanhamento do ciclo menstrual, revisão de exames preventivos e orientações.'
   );
 
@@ -162,16 +162,16 @@ export const TeleconsultationModal: React.FC<TeleconsultationModalProps> = ({
   };
 
   const handleSendSummaryToChat = async () => {
-    const summaryPayload = `📄 [Resumo de Teleorientação Vittacare — FINALIZADO]\nProfissional: ${activeDoctor}\nPaciente: ${patient.name}\nQueixa/Foco: ${mainComplaint}\nAnotações e Conduta:\n${sessionNotes}`;
+    const summaryPayload = `📄 [Resumo de Teleorientação Vittacare — FINALIZADO]\nProfissional: ${activeDoctor}\nPaciente: ${patient?.name || 'Paciente'}\nQueixa/Foco: ${mainComplaint}\nAnotações e Conduta:\n${sessionNotes}`;
 
     await sendRealtimeChatMessage({
       channelId: 'prof-marcelo',
       senderRole: 'paciente',
-      senderId: patient.id || 'paciente-ativa',
-      senderName: patient.name,
+      senderId: patient?.id || 'paciente-ativa',
+      senderName: patient?.name || 'Paciente',
       recipientId: 'prof-marcelo',
       recipientName: activeDoctor,
-      patientName: patient.name,
+      patientName: patient?.name || 'Paciente',
       text: summaryPayload,
       category: 'orientacao',
     });
@@ -329,7 +329,7 @@ export const TeleconsultationModal: React.FC<TeleconsultationModalProps> = ({
                   </h3>
                 </div>
                 <p className="text-xs text-stone-300 leading-relaxed">
-                  Preparando o resumo clínico de {patient.name} e preparando o canal seguro com {activeDoctor}.
+                  Preparando o resumo clínico de {patient?.name || 'Paciente'} e preparando o canal seguro com {activeDoctor}.
                 </p>
               </div>
             )}
@@ -405,16 +405,16 @@ export const TeleconsultationModal: React.FC<TeleconsultationModalProps> = ({
                   {isCamOff ? (
                     <VideoOff className="w-4 h-4 text-stone-500" />
                   ) : (
-                    patient.preferredName[0]
+                    patient?.preferredName?.[0] || 'M'
                   )}
                 </div>
                 <div>
                   <span className="text-xs font-bold text-white block">
-                    {patient.preferredName} (Paciente)
+                    {patient?.preferredName || 'Paciente'} (Paciente)
                   </span>
                   <span className="text-[11px] text-stone-400 block">
-                    {patient.userMode === 'gestante'
-                      ? `${patient.currentWeek}ª Semana Gestacional`
+                    {patient?.userMode === 'gestante'
+                      ? `${patient?.currentWeek || 18}ª Semana Gestacional`
                       : 'Saúde Integral da Mulher'}
                   </span>
                 </div>
@@ -612,7 +612,7 @@ export const TeleconsultationModal: React.FC<TeleconsultationModalProps> = ({
                     </span>
                     <div className="text-xs text-stone-700 space-y-1">
                       <p>
-                        <strong>Paciente:</strong> {patient.name}
+                        <strong>Paciente:</strong> {patient?.name || 'Paciente'}
                       </p>
                       <p>
                         <strong>Profissional:</strong> {activeDoctor}

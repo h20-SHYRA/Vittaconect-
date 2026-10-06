@@ -111,7 +111,7 @@ export const PrenatalBirthPlanPanel: React.FC = () => {
     } catch {}
     return {
       preferredBirthType: 'normal_humanizado',
-      companionName: patient.emergencyContact || 'Lucas Santos (Esposo)',
+      companionName: patient?.emergencyContact || 'Lucas Santos (Esposo)',
       painReliefMethods: [
         'Banho morno de aspersão (chuveiro)',
         'Bola suíça e liberdade de movimentação',
@@ -169,12 +169,12 @@ export const PrenatalBirthPlanPanel: React.FC = () => {
     await sendRealtimeChatMessage({
       channelId: 'prof-marcelo',
       senderRole: 'paciente',
-      senderId: patient.id || 'paciente-ativa',
-      senderName: patient.name,
+      senderId: patient?.id || 'paciente-ativa',
+      senderName: patient?.name || 'Paciente',
       recipientId: 'prof-marcelo',
       recipientName: 'Equipe de Enfermagem Vittacare',
-      patientName: patient.name,
-      text: `🌸 [Plano de Parto Atualizado • ${patient.name}]\nVia de preferência: ${birthPlan.preferredBirthType}\nAcompanhante: ${birthPlan.companionName}\nAlívio da dor: ${birthPlan.painReliefMethods.join(', ')}\nGolden Hour pele a pele: ${birthPlan.goldenHourSkinToSkin ? 'Sim' : 'Não'} | Clampeamento oportuno: ${birthPlan.delayedCordClamping ? 'Sim' : 'Não'}\nObservações: ${birthPlan.specialNotes}`,
+      patientName: patient?.name || 'Paciente',
+      text: `🌸 [Plano de Parto Atualizado • ${patient?.name || 'Paciente'}]\nVia de preferência: ${birthPlan.preferredBirthType}\nAcompanhante: ${birthPlan.companionName}\nAlívio da dor: ${birthPlan.painReliefMethods.join(', ')}\nGolden Hour pele a pele: ${birthPlan.goldenHourSkinToSkin ? 'Sim' : 'Não'} | Clampeamento oportuno: ${birthPlan.delayedCordClamping ? 'Sim' : 'Não'}\nObservações: ${birthPlan.specialNotes}`,
       category: 'orientacao',
     });
 

@@ -30,7 +30,7 @@ export const DailyCheckinPanel: React.FC<DailyCheckinPanelProps> = ({
 }) => {
   const { patient } = usePatient();
   const { showToast } = useFeedback();
-  const isPregnant = patient.userMode === 'gestante';
+  const isPregnant = patient?.userMode !== 'saude_feminina';
   const todayStr = new Date().toISOString().split('T')[0];
 
   const [checkin, setCheckin] = useState<DailyHealthCheckin>(() => {
@@ -117,7 +117,7 @@ export const DailyCheckinPanel: React.FC<DailyCheckinPanelProps> = ({
               </div>
               <div>
                 <h3 className="font-serif text-lg sm:text-xl font-bold text-stone-800 leading-tight">
-                  Como você está hoje, {patient.preferredName}?
+                  Como você está hoje, {patient?.preferredName || 'Paciente'}?
                 </h3>
                 <p className="text-xs text-stone-500">
                   Check-in diário de humor, hidratação, suplemento, sono e energia

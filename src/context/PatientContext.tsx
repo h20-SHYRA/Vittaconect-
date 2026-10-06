@@ -192,13 +192,14 @@ export const PatientProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setPatient(DEFAULT_WOMAN_PATIENT);
   };
 
-  const currentMode: UserMode = patient?.userMode || 'gestante';
+  const activePatient: PatientProfile | null = patient || patientProfile;
+  const currentMode: UserMode = activePatient?.userMode || 'gestante';
 
   return (
     <PatientContext.Provider
       value={{
-        patient,
-        isLoggedIn: !!patient,
+        patient: activePatient,
+        isLoggedIn: !!activePatient,
         userMode: currentMode,
         registerOrUpdatePatient,
         switchMode,

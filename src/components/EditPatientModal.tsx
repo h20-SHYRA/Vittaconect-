@@ -40,10 +40,8 @@ export const EditPatientModal: React.FC<EditPatientModalProps> = ({ onClose }) =
   };
 
   const handleLogout = () => {
-    if (window.confirm('Deseja realmente sair? Você poderá cadastrar outra gestante ou entrar novamente a qualquer momento.')) {
-      logout();
-      onClose();
-    }
+    logout();
+    onClose();
   };
 
   return (
