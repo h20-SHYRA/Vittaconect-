@@ -270,7 +270,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     if (onChangeTab) onChangeTab(tab);
   };
 
-  // Mobile Bottom Bar: 5 core functions + Menu (Section 7)
+  // Mobile Bottom Bar: 4 primary clinical functions + Mais Drawer (5 comfortable columns)
   const primaryTabs: {
     id: NavTab;
     label: string;
@@ -297,17 +297,15 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     },
     {
       id: 'documents',
-      label: 'Documentos',
+      label: 'Exames',
       icon: FileText,
       matches: ['documents'],
     },
-    {
-      id: 'profile',
-      label: 'Perfil',
-      icon: User,
-      matches: ['profile'],
-    },
   ];
+
+  const isSecondaryTabActive = !primaryTabs.some((t) =>
+    t.matches.includes(activeTab)
+  );
 
   const secondaryModules: {
     id: NavTab;
@@ -317,22 +315,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   }[] = isWomanMode
     ? [
         {
-          id: 'cycle_tracker',
-          label: 'Ciclo & Ovulação',
-          desc: 'Calendário menstrual e janela fértil',
-          icon: Flower2,
+          id: 'profile',
+          label: 'Meu Perfil & LGPD',
+          desc: 'Dados pessoais, acessibilidade e privacidade',
+          icon: User,
         },
         {
           id: 'preventive_screening',
           label: 'Exames & Prevenção',
           desc: 'Papanicolaou, mamografia e sorologias',
           icon: ShieldCheck,
-        },
-        {
-          id: 'documents',
-          label: 'Documentos & Receitas',
-          desc: 'Pedidos de exames, receitas, atestados e laudos',
-          icon: FileText,
         },
         {
           id: 'symptoms',
@@ -361,16 +353,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       ]
     : [
         {
-          id: 'prenatal_card',
-          label: 'Cartão Pré-Natal',
-          desc: 'Exames, vacinas, ultrassons e plano de parto',
-          icon: ClipboardList,
-        },
-        {
-          id: 'documents',
-          label: 'Documentos & Receitas',
-          desc: 'Exames, receitas, atestados e resultados',
-          icon: FileText,
+          id: 'profile',
+          label: 'Meu Perfil & LGPD',
+          desc: 'Dados da gestante, acessibilidade e privacidade',
+          icon: User,
         },
         {
           id: 'symptoms',
@@ -493,7 +479,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-stone-200/80 shadow-lg"
       >
         <div className="max-w-7xl mx-auto px-2">
-          <div className="grid grid-cols-6 py-1.5">
+          <div className="grid grid-cols-5 py-1.5 gap-1">
             {primaryTabs.map((item) => {
               const Icon = item.icon;
               const isActive = item.matches.includes(activeTab);
@@ -525,9 +511,17 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               type="button"
               onClick={() => setShowSecondaryDrawer(true)}
               aria-label="Abrir mais módulos"
-              className="flex flex-col items-center justify-center gap-1 px-1 py-1.5 rounded-xl text-stone-600 hover:text-[#5D1425] transition-all cursor-pointer min-h-[48px]"
+              className={`flex flex-col items-center justify-center gap-1 px-1 py-1.5 rounded-xl transition-all cursor-pointer min-h-[48px] ${
+                isSecondaryTabActive
+                  ? 'text-[#731C31] bg-[#FAF0F2] font-semibold'
+                  : 'text-stone-600 hover:text-[#5D1425]'
+              }`}
             >
-              <Grid className="w-4 h-4 text-[#B89243] shrink-0" />
+              <Grid
+                className={`w-4 h-4 shrink-0 ${
+                  isSecondaryTabActive ? 'text-[#8D253D]' : 'text-[#B89243]'
+                }`}
+              />
               <span className="text-[10px] font-semibold tracking-wide whitespace-nowrap">
                 Mais
               </span>

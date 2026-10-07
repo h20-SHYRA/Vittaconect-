@@ -9,12 +9,149 @@ import {
   Loader2,
   ShieldAlert,
   ChevronDown,
+  ArrowLeft,
 } from 'lucide-react';
 
 export type BrandVariant = 'patient' | 'professional';
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'gold';
 export type SizeVariant = 'sm' | 'md' | 'lg';
 export type SemanticTone = 'normal' | 'attention' | 'urgent' | 'info' | 'neutral' | 'wine' | 'blue' | 'gold';
+
+/* ============================================================================
+ * 0. STANDARDIZED PAGE HEADER & SECTION HEADER (Section 1 & 6)
+ * ========================================================================== */
+export const PageHeader: React.FC<{
+  badge?: string;
+  badgeIcon?: React.ReactNode;
+  title: string;
+  description?: string;
+  actions?: React.ReactNode;
+  onBack?: () => void;
+  backLabel?: string;
+  brand?: BrandVariant;
+}> = ({
+  badge,
+  badgeIcon,
+  title,
+  description,
+  actions,
+  onBack,
+  backLabel = 'Voltar ao Início',
+  brand = 'patient',
+}) => (
+  <header
+    className={`rounded-2xl p-5 sm:p-6 border shadow-2xs transition-all ${
+      brand === 'professional'
+        ? 'vitta-pearl-white-card'
+        : 'bg-white border-[#E6D4AF]/80'
+    }`}
+  >
+    {onBack && (
+      <div className="mb-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer ${
+            brand === 'professional'
+              ? 'text-[#0A2647] bg-[#EBF6FF] hover:bg-[#DCEFFE]'
+              : 'text-[#5D1425] bg-[#FAF0F2] hover:bg-[#F5DADF] border border-[#EBBEC8]/60'
+          }`}
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>{backLabel}</span>
+        </button>
+      </div>
+    )}
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="space-y-1.5 max-w-2xl">
+        {badge && (
+          <div
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider border ${
+              brand === 'professional'
+                ? 'bg-[#DCEFFE] text-[#0A2647] border-[#144272]/30'
+                : 'bg-[#FAF0F2] text-[#8D253D] border-[#EBBEC8]'
+            }`}
+          >
+            {badgeIcon}
+            <span>{badge}</span>
+          </div>
+        )}
+        <h1
+          className={`text-xl sm:text-2xl lg:text-3xl font-serif font-bold tracking-tight leading-tight ${
+            brand === 'professional' ? 'text-[#0A2647]' : 'text-[#480D1B]'
+          }`}
+        >
+          {title}
+        </h1>
+        {description && (
+          <p
+            className={`text-xs sm:text-sm leading-relaxed ${
+              brand === 'professional' ? 'text-[#144272]' : 'text-stone-600'
+            }`}
+          >
+            {description}
+          </p>
+        )}
+      </div>
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2 shrink-0 pt-1 md:pt-0">
+          {actions}
+        </div>
+      )}
+    </div>
+  </header>
+);
+
+export const SectionHeader: React.FC<{
+  overline?: string;
+  title: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
+  action?: React.ReactNode;
+  brand?: BrandVariant;
+}> = ({ overline, title, subtitle, icon, action, brand = 'patient' }) => (
+  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-3.5">
+    <div className="space-y-0.5">
+      {overline && (
+        <span
+          className={`text-[10px] font-bold uppercase tracking-widest block ${
+            brand === 'professional' ? 'text-[#144272]' : 'text-[#8D253D]'
+          }`}
+        >
+          {overline}
+        </span>
+      )}
+      <div className="flex items-center gap-2">
+        {icon && (
+          <span
+            className={
+              brand === 'professional' ? 'text-[#144272]' : 'text-[#8D253D]'
+            }
+          >
+            {icon}
+          </span>
+        )}
+        <h2
+          className={`text-base sm:text-lg font-serif font-bold leading-snug ${
+            brand === 'professional' ? 'text-[#0A2647]' : 'text-[#480D1B]'
+          }`}
+        >
+          {title}
+        </h2>
+      </div>
+      {subtitle && (
+        <p
+          className={`text-xs ${
+            brand === 'professional' ? 'text-[#144272]/80' : 'text-stone-500'
+          }`}
+        >
+          {subtitle}
+        </p>
+      )}
+    </div>
+    {action && <div className="shrink-0">{action}</div>}
+  </div>
+);
 
 /* ============================================================================
  * 1. BUTTON & ICON BUTTON
@@ -913,25 +1050,25 @@ export const Modal: React.FC<{
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-fadeIn"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full ${maxW} max-h-[90vh] flex flex-col rounded-3xl overflow-hidden shadow-2xl ${
+        className={`w-full ${maxW} max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl ${
           brand === 'professional'
-            ? 'vitta-pearl-blue-bg border-2 border-[#0A2647]'
-            : 'bg-[#FDFBF7] border border-[#E6D4AF]'
+            ? 'vitta-pearl-blue-bg border-t-2 sm:border-2 border-[#0A2647]'
+            : 'bg-[#FDFBF7] border-t sm:border border-[#E6D4AF]'
         }`}
       >
         <div
-          className={`px-5 py-4 flex items-center justify-between border-b ${
+          className={`px-5 py-4 flex items-center justify-between border-b shrink-0 ${
             brand === 'professional'
               ? 'vitta-pearl-blue-header border-[#144272]'
               : 'bg-white border-[#E6D4AF]/60'
           }`}
         >
-          <div>
+          <div className="pr-3">
             <h3
               id="modal-title"
               className={`text-base sm:text-lg font-serif font-bold ${
@@ -942,7 +1079,7 @@ export const Modal: React.FC<{
             </h3>
             {subtitle && (
               <p
-                className={`text-xs ${
+                className={`text-xs mt-0.5 ${
                   brand === 'professional' ? 'text-[#144272]' : 'text-stone-500'
                 }`}
               >
@@ -957,9 +1094,9 @@ export const Modal: React.FC<{
         <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4">{children}</div>
         {footer && (
           <div
-            className={`px-5 py-3.5 border-t flex items-center justify-end gap-2 ${
+            className={`px-5 py-3.5 border-t shrink-0 flex flex-wrap items-center justify-end gap-2 ${
               brand === 'professional'
-                ? 'bg-white/90 border-[#144272]/25'
+                ? 'bg-white/95 border-[#144272]/25'
                 : 'bg-white border-stone-200/70'
             }`}
           >

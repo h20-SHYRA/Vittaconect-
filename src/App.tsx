@@ -133,6 +133,79 @@ function AppContent() {
     setActiveTelehealthId(null);
   };
 
+  const isHomeTab =
+    currentTab === 'home' ||
+    currentTab === 'woman_home' ||
+    currentTab === 'dashboard';
+
+  const internalTabMeta: Record<
+    string,
+    { category: string; title: string; subtitle: string }
+  > = {
+    prenatal_card: {
+      category: 'Acompanhamento Gestacional',
+      title: 'Cartão Pré-Natal Digital',
+      subtitle: 'Histórico obstétrico, consultas, exames, vacinas e plano de parto',
+    },
+    cycle_tracker: {
+      category: 'Saúde Integral da Mulher',
+      title: 'Calendário do Ciclo & Ovulação',
+      subtitle: 'Registro de fluxo menstrual, janela fértil estimada, sintomas e humor',
+    },
+    preventive_screening: {
+      category: 'Medicina Preventiva',
+      title: 'Carteira Preventiva & Rastreio',
+      subtitle: 'Acompanhamento de Papanicolaou, mamografia, ultrassom e sorologias',
+    },
+    calendar: {
+      category: 'Agenda Clínica',
+      title: 'Agenda de Consultas & Exames',
+      subtitle: 'Visualize compromissos por período, confirme presença ou acesse teleconsultas',
+    },
+    documents: {
+      category: 'Prontuário da Paciente',
+      title: 'Central de Documentos, Exames & Receitas',
+      subtitle: 'Pedidos médicos, prescrições, atestados, termos e laudos laboratoriais',
+    },
+    symptoms: {
+      category: 'Monitoramento Diário',
+      title: 'Diário Clínico de Sintomas & Sinais',
+      subtitle: 'Registre sinais vitais, intensidade de sintomas e movimentação fetal',
+    },
+    reminders: {
+      category: 'Rotina & Autocuidado',
+      title: 'Lembretes & Orientações da Equipe',
+      subtitle: 'Suplementos, medicações, preparo de exames e cuidados pós-consulta',
+    },
+    education: {
+      category: 'Educação em Saúde',
+      title: 'Biblioteca de Educação Materno-Infantil',
+      subtitle: 'Guias clínicos por trimestre, amamentação, nutrição e preparo para o parto',
+    },
+    woman_education: {
+      category: 'Educação em Saúde Feminina',
+      title: 'Guias de Saúde da Mulher & Bem-Estar',
+      subtitle: 'Artigos educativos sobre prevenção, ciclo hormonal, fertilidade e autocuidado',
+    },
+    community: {
+      category: 'Rede de Acolhimento',
+      title: 'Comunidade Moderada Vittacare',
+      subtitle: 'Espaço seguro de troca entre pacientes com moderação da equipe de enfermagem',
+    },
+    news: {
+      category: 'Comunicação Institucional',
+      title: 'Mural & Novidades da Clínica Vittacare',
+      subtitle: 'Cursos presenciais, oficinas de gestantes, comunicados e atualizações',
+    },
+    profile: {
+      category: 'Conta & Privacidade',
+      title: 'Meu Perfil, Acessibilidade & LGPD',
+      subtitle: 'Gerencie seus dados pessoais, preferências visuais, notificações e privacidade',
+    },
+  };
+
+  const activeInternalMeta = internalTabMeta[currentTab];
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#2C2123] flex flex-col font-sans selection:bg-[#E6D4AF] selection:text-[#5D1425] relative transition-colors duration-200">
       {/* Subtle Luxury Botanical Leaf Background Watermark */}
@@ -158,7 +231,7 @@ function AppContent() {
         onOpenNurseChat={() => setIsChatOpen(true)}
       />
 
-      {/* Main Workspace: Desktop Left Sidebar (Section 7) + Content Container */}
+      {/* Main Workspace: Desktop Left Sidebar (Section 4 & 7) + Content Container */}
       <div className="flex-1 max-w-7xl w-full mx-auto flex z-10">
         <DesktopSidebarNav
           activeTab={currentTab}
@@ -168,7 +241,44 @@ function AppContent() {
         />
 
         {/* Main Content Area */}
-        <main className="flex-1 min-w-0 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-24 lg:pb-12">
+        <main className="flex-1 min-w-0 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-28 lg:pb-14">
+          {/* Standardized Internal Screen Navigation & Context Bar (Section 6) */}
+          {!isHomeTab && activeInternalMeta && (
+            <div className="mb-5 p-3.5 sm:px-5 sm:py-3.5 rounded-2xl bg-white border border-[#E6D4AF]/80 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleSelectTab(isWomanMode ? 'woman_home' : 'home')
+                  }
+                  className="min-h-[38px] px-3 py-1.5 rounded-xl bg-[#FAF0F2] hover:bg-[#F5DADF] text-[#5D1425] border border-[#EBBEC8] text-xs font-bold transition-colors cursor-pointer shrink-0 flex items-center gap-1.5"
+                >
+                  <span>← Início</span>
+                </button>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8D253D] block">
+                    {activeInternalMeta.category}
+                  </span>
+                  <span className="text-xs sm:text-sm font-serif font-bold text-[#480D1B] truncate block">
+                    {activeInternalMeta.title}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsChatOpen(true)}
+                  className="min-h-[36px] px-3 py-1.5 rounded-xl bg-[#FAF6ED] hover:bg-[#F3EBD8] text-[#480D1B] border border-[#E6D4AF] text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-[#8D253D]" />
+                  <span className="hidden sm:inline">Dúvidas com Enfermagem</span>
+                  <span className="sm:hidden">Chat</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* TABS DO MODO SAÚDE FEMININA (NÃO GESTANTE) */}
           {isWomanMode && (
             <>
@@ -233,6 +343,38 @@ function AppContent() {
               onOpenCustomization={() => setIsCustomizationOpen(true)}
             />
           )}
+
+          {/* Standardized Internal Screen Return Footer (Section 6) */}
+          {!isHomeTab && (
+            <div className="mt-8 pt-5 border-t border-[#E6D4AF]/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  handleSelectTab(isWomanMode ? 'woman_home' : 'home')
+                }
+                className="w-full sm:w-auto min-h-[42px] px-4 py-2 rounded-xl bg-white hover:bg-[#FAF0F2] text-[#5D1425] border border-[#E6D4AF] text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+              >
+                <span>← Voltar para o Painel Principal</span>
+              </button>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
+                <button
+                  type="button"
+                  onClick={() => handleSelectTab('calendar')}
+                  className="min-h-[42px] px-3.5 py-2 rounded-xl bg-[#FAF6ED] hover:bg-[#F3EBD8] text-[#480D1B] border border-[#E6D4AF] text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Ver Agenda
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectTab('documents')}
+                  className="min-h-[42px] px-3.5 py-2 rounded-xl bg-[#FAF6ED] hover:bg-[#F3EBD8] text-[#480D1B] border border-[#E6D4AF] text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Meus Documentos
+                </button>
+              </div>
+            </div>
+          )}
         </main>
       </div>
 
@@ -248,7 +390,7 @@ function AppContent() {
         </div>
       </footer>
 
-      {/* Consolidated 5-Tab Bottom Navigation */}
+      {/* Consolidated Bottom Navigation */}
       <BottomNav activeTab={currentTab} onChangeTab={handleSelectTab} />
 
       {/* Global Search & Smart Notifications Drawers */}
@@ -282,14 +424,14 @@ function AppContent() {
       {/* Floating Action Button: Chat ao Vivo com os Enfermeiros */}
       <button
         onClick={() => setIsChatOpen(true)}
-        className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-40 bg-gradient-to-r from-[#FAFCFE] via-[#F0F6FA] to-[#E2EEF5] text-[#0B192C] p-3 sm:px-4 sm:py-3 rounded-full shadow-2xl flex items-center gap-2 border-2 border-[#0B192C] hover:scale-105 active:scale-95 transition-all cursor-pointer group"
+        className="fixed bottom-20 lg:bottom-6 right-4 sm:right-6 z-40 bg-[#5D1425] hover:bg-[#480D1B] text-[#E6D4AF] p-3.5 sm:px-4 sm:py-3 rounded-full shadow-xl flex items-center gap-2 border border-[#B89243] hover:scale-105 active:scale-95 transition-all cursor-pointer group"
         title="Falar em tempo real com a Equipe de Enfermagem (Letícia, Marcelo, Bianca, Stephanie)"
       >
         <div className="relative">
-          <MessageSquare className="w-5 h-5 text-[#1E3E62]" />
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-[#0B192C] animate-pulse" />
+          <MessageSquare className="w-5 h-5 text-[#E6D4AF]" />
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#5D1425] animate-pulse" />
         </div>
-        <span className="hidden sm:inline text-xs font-bold tracking-wide text-[#0B192C]">
+        <span className="hidden sm:inline text-xs font-bold tracking-wide text-white">
           Plantão Enfermagem
         </span>
       </button>
